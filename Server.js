@@ -1,6 +1,12 @@
 var express = require("express");
 var multer = require('multer');
-var http = require('http');
+// var http = require('http');
+
+var https = require('https');
+
+const PUERTO = 9000;
+
+
 var fs = require('fs');
 var util = require('util');
 const cors = require('cors')
@@ -19,6 +25,12 @@ app.use(bodyParser.urlencoded({
 
 var async = require('async');
 
+https.createServer({
+   cert: fs.readFileSync('/etc/ssl/certs/server.crt'),
+   key: fs.readFileSync('/etc/ssl/certs/server.key')
+ },app).listen(PUERTO, function(){
+    console.log('Servidor https correindo en el puerto 9000');
+});
 //Mysql 
 const mysql = require('mysql');
 
@@ -672,6 +684,6 @@ app.use(express.static(__dirname + '/public'));
 app.use("/api/static", express.static(__dirname + '/public/uploads'));
 
 // start the express App
-app.listen(9000, function () {
-    console.log("Working on port 9000");
-});
+// app.listen(9000, function () {
+//     console.log("Working on port 9000");
+// });

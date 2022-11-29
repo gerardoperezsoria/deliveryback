@@ -26,8 +26,13 @@ app.use(bodyParser.urlencoded({
 var async = require('async');
 
 https.createServer({
-   cert: fs.readFileSync('/etc/ssl/certs/server.crt'),
-   key: fs.readFileSync('/etc/ssl/certs/server.key')
+//    cert: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem'),
+//    key: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem')
+
+   key: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8'),
+   cert: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8'),
+   ca: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8')   
+
  },app).listen(PUERTO, function(){
     console.log('Servidor https correindo en el puerto 9000');
 });

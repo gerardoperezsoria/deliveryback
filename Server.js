@@ -1,7 +1,6 @@
 var express = require("express");
 var multer = require('multer');
-// var http = require('http');
-
+var http = require('http');
 var https = require('https');
 
 const PUERTO = 9000;
@@ -25,17 +24,46 @@ app.use(bodyParser.urlencoded({
 
 var async = require('async');
 
-https.createServer({
+// https.createServer({
 //    cert: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem'),
 //    key: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem')
 
-   key: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8'),
-   cert: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8'),
-   ca: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8')   
+//    key: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8'),
+//    cert: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8'),
+//    ca: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8')   
 
- },app).listen(PUERTO, function(){
-    console.log('Servidor https correindo en el puerto 9000');
+//  },app).listen(PUERTO, function(){
+//     console.log('Servidor https corriendo en el puerto 9000');
+// });
+
+// Certificate
+const privateKey = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8');
+const certificate = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8');
+const ca = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8');
+
+const credentials = {
+    key: privateKey,
+    cert: certificate,
+    ca: ca
+};
+
+app.use((req, res) => {
+    res.send('Hello there !');
 });
+
+// Starting both http & https servers
+const httpServer = http.createServer(app);
+const httpsServer = https.createServer(credentials, app);
+
+httpServer.listen(80, () => {
+    console.log('HTTP Server running on port 80');
+});
+
+httpsServer.listen(443, () => {
+    console.log('HTTPS Server running on port 443');
+});
+
+
 //Mysql 
 const mysql = require('mysql');
 

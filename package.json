@@ -17,8 +17,10 @@
     "async": "^2.1.4",
     "body-parser": "^1.20.1",
     "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
     "express": "4.13.3",
     "express-fileupload": "^1.4.0",
+    "express-static": "^1.2.6",
     "https": "^1.0.0",
     "multer": "1.1.0",
     "mysql": "^2.18.1",
@@ -26,7 +28,8 @@
     "path": "^0.12.7",
     "request": "^2.88.2",
     "uuid": "^9.0.0",
-    "walk": "^2.3.9"
+    "walk": "^2.3.9",
+    "web-push": "^3.5.0"
   },
   "devDependencies": {
     "should": "~7.1.0",

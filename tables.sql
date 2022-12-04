@@ -56,6 +56,9 @@ CREATE TABLE tienda (
     whatsapp varchar(255),
     nombre_tienda varchar(255),
     cuentaclabe char(18),
+    beneficiario varchar(255),
+    banco varchar(255),
+    logotipo varchar(255),
     fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     idusuario int,
     status char(1),
@@ -65,6 +68,10 @@ CREATE TABLE tienda (
 
 ALTER TABLE tienda ADD COLUMN cuentaclabe char(18) AFTER nombre_tienda;
 ALTER TABLE tienda ADD FOREIGN KEY(idusuario) REFERENCES usuario(idusuario);
+
+ALTER TABLE tienda ADD COLUMN beneficiario varchar(255) AFTER cuentaclabe;
+ALTER TABLE tienda ADD COLUMN banco varchar(255) AFTER beneficiario;
+ALTER TABLE tienda ADD COLUMN logotipo varchar(255) AFTER banco;
 
 insert into tienda values(
         null,
@@ -95,12 +102,18 @@ CREATE TABLE producto (
     idtienda int,
     t_entrega varchar(255),
     categoria varchar(255),
-    fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+    fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    envio char(1) DEFAULT 0,
     status char(1),
     PRIMARY KEY (idproducto),
     INDEX (idproducto),
     FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
 );
+
+ALTER TABLE producto ADD COLUMN envio char(1) DEFAULT 0 AFTER fechahora;
+ALTER TABLE producto MODIFY categoria VARCHAR(255);
+
+
 insert into producto values(
     null,
     "hamburguesa",
@@ -201,6 +214,20 @@ CREATE TABLE repartidor (
     PRIMARY KEY (idrepartidor)
 );
 
+create table suscriptor(
+    idsuscriptor int NOT NULL AUTO_INCREMENT,
+    idtienda int,
+    endpoint TINYTEXT,
+    expirationTime int,
+    p256dh TINYTEXT,
+    auth varchar(255),
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status char(1),
+    PRIMARY KEY (idsuscriptor),
+    INDEX (idsuscriptor),
+    FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
+);
+
 ALTER TABLE repartidor ADD COLUMN idusuario int AFTER cuentaclabe;
 ALTER TABLE repartidor ADD FOREIGN KEY(idusuario) REFERENCES usuario(idusuario);
 
@@ -244,3 +271,17 @@ FROM venta
 INNER JOIN producto
 ON venta.idproducto=producto.idproducto
 WHERE idventa=80;
+
+
+
+
+    
+
+
+SELECT statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.hora_cierre, tienda.nombre_tienda
+FROM tienda
+INNER JOIN producto
+ON tienda.idtienda=producto.idtienda
+INNER JOIN statustienda
+ON statustienda.idtienda=producto.idtienda
+WHERE producto.status=1;

@@ -34,15 +34,23 @@ var async = require('async');
 // });
 
 // Certificate
-// const privateKey = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8');
-// const certificate = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8');
-// const ca = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8');
+const privateKey = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8');
+const certificate = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8');
+const ca = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8');
 
-// const credentials = {
-//     key: privateKey,
-//     cert: certificate,
-//     ca: ca
-// };
+const credentials = {
+    key: privateKey,
+    cert: certificate,
+    ca: ca
+};
+
+https.createServer({
+    // cert: fs.readFileSync('mi_certificado.crt'),
+    // key: fs.readFileSync('mi_certificado.key')
+    credentials
+  },app).listen(9000, function(){
+     console.log('Servidor https correindo en el puerto 9000');
+ });
 
 //Mysql 
 const mysql = require('mysql');

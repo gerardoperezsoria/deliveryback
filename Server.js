@@ -30,7 +30,7 @@ var async = require('async');
 //    ca: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8')   
 
 //  },app).listen(PUERTO, function(){
-//     console.log('Servidor https corriendo en el puerto 9000');
+//     console.log('Servidor https corriendo en el puerto 9001');
 // });
 
 // Certificate
@@ -48,8 +48,8 @@ https.createServer({
     // cert: fs.readFileSync('mi_certificado.crt'),
     // key: fs.readFileSync('mi_certificado.key')
     credentials
-  },app).listen(9000, function(){
-     console.log('Servidor https correindo en el puerto 9000');
+  },app).listen(9001, function(){
+     console.log('Servidor https correindo en el puerto 9001');
  });
 
 //Mysql 
@@ -847,8 +847,8 @@ app.use(express.static(__dirname + '/public'));
 app.use("/api/static", express.static(__dirname + '/public/uploads'));
 
 // start the express App
-app.listen(9000, function () {
-    console.log("Working on port 9000");
+app.listen(9001, function () {
+    console.log("Working on port 9001");
 });
 
 // Starting both http & https servers
@@ -859,8 +859,8 @@ app.listen(9000, function () {
 //     console.log('HTTP Server running on port 9001');
 // });
 
-// httpsServer.listen(9000, () => {
-//     console.log('HTTPS Server running on port 9000');
+// httpsServer.listen(9001, () => {
+//     console.log('HTTPS Server running on port 9001');
 // });
 
 /**Codigo de notificaciones web push */

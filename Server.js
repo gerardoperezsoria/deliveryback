@@ -44,14 +44,6 @@ const credentials = {
     ca: ca
 };
 
-https.createServer({
-    // cert: fs.readFileSync('mi_certificado.crt'),
-    // key: fs.readFileSync('mi_certificado.key')
-    credentials
-  },app).listen(9000, function(){
-     console.log('Servidor https correindo en el puerto 9002');
- });
-
 //Mysql 
 const mysql = require('mysql');
 
@@ -853,15 +845,15 @@ app.use("/api/static", express.static(__dirname + '/public/uploads'));
 
 // Starting both http & https servers
 // const httpServer = http.createServer(app);
-// const httpsServer = https.createServer(credentials, app);
+const httpsServer = https.createServer(credentials, app);
 
 // httpServer.listen(9002, () => {
 //     console.log('HTTP Server running on port 9002');
 // });
 
-// httpsServer.listen(9002, () => {
-//     console.log('HTTPS Server running on port 9002');
-// });
+httpsServer.listen(9000, () => {
+    console.log('HTTPS Server running on port 9000');
+});
 
 /**Codigo de notificaciones web push */
 

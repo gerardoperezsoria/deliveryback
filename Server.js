@@ -48,7 +48,7 @@ https.createServer({
     // cert: fs.readFileSync('mi_certificado.crt'),
     // key: fs.readFileSync('mi_certificado.key')
     credentials
-  },app).listen(9002, function(){
+  },app).listen(9000, function(){
      console.log('Servidor https correindo en el puerto 9002');
  });
 
@@ -847,9 +847,9 @@ app.use(express.static(__dirname + '/public'));
 app.use("/api/static", express.static(__dirname + '/public/uploads'));
 
 // start the express App
-app.listen(9002, function () {
-    console.log("Working on port 9002");
-});
+//app.listen(9002, function () {
+//    console.log("Working on port 9002");
+//});
 
 // Starting both http & https servers
 // const httpServer = http.createServer(app);

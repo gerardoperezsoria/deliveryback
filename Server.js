@@ -21,28 +21,16 @@ app.use(bodyParser.urlencoded({
 
 var async = require('async');
 
-// https.createServer({
-//    cert: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem'),
-//    key: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem')
-
-//    key: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8'),
-//    cert: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8'),
-//    ca: fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8')   
-
-//  },app).listen(PUERTO, function(){
-//     console.log('Servidor https corriendo en el puerto 9000');
-// });
-
 // Certificate
-const privateKey = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8');
-const certificate = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8');
-const ca = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8');
+// const privateKey = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8');
+// const certificate = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8');
+// const ca = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8');
 
-const credentials = {
-    key: privateKey,
-    cert: certificate,
-    ca: ca
-};
+// const credentials = {
+//     key: privateKey,
+//     cert: certificate,
+//     ca: ca
+// };
 
 //Mysql 
 const mysql = require('mysql');
@@ -61,6 +49,18 @@ function fechaActual() {
     var fechaYHora = fecha + ' ' + hora;
     return fechaYHora
 }
+
+
+let dias = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"];
+let meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+function getDiaActual() {
+    let date = new Date();
+    let fechaNum = date.getUTCDate();
+    let mes_name = date.getMonth();
+    // alert(dias[date.getDay()] + " " + fechaNum + " de " + meses[mes_name] + " de " + date.getFullYear());
+    return dias[date.getDay()]
+}
+
 
 app.post('/api/authenticationcustomer', function (req, res) {
     const { password, telefono, status } = req.body
@@ -248,17 +248,21 @@ app.get('/api/ventas', function (req, res) {
 });
 
 
-app.get('/api/productos', function (req, res) {
-    const { limite = 50 } = req.body
+app.get('/api/productos/:limite', function (req, res) {
+    // app.get('/api/productos', function (req, res) {
+    const { limite } = req.params
+    const diasemana = getDiaActual()
+    console.log("/api/productos",req.params,diasemana)
     // connection.query(`SELECT * FROM producto WHERE status=1 ORDER BY idproducto DESC limit ${limite}`, [], function (error, results, fields) {
-    connection.query(`SELECT statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
+    connection.query(`SELECT horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
         FROM tienda
         INNER JOIN producto
         ON tienda.idtienda=producto.idtienda
         INNER JOIN statustienda
         ON statustienda.idtienda=producto.idtienda
-        WHERE producto.status=1`, [], function (error, results, fields) {
-
+        INNER JOIN horario
+        ON horario.idtienda=producto.idtienda
+        WHERE producto.status=1 and horario.status_dia=1 and horario.dia=? and horario.status_dia=1 limit ${limite}`, [diasemana], function (error, results, fields) {
         if (error) throw error;
         if (results.length > 0) {
             res.json(results);
@@ -548,6 +552,27 @@ function statusTienda(idtienda) {
         });
 }
 
+function insertHorario(idtienda, horario) {
+    const objhorario = JSON.parse(horario)
+    objhorario.map((row, index) => {
+        const diadescanzo = row.descanzo
+        let descanzo = 0
+        if (diadescanzo) {
+            descanzo = 1
+        }
+        if (!diadescanzo) {
+            descanzo = 0
+        }
+
+        connection.query(`INSERT INTO horario VALUES(null,?,?,?,?,?,1)`,
+            [row.dia, row.hora_apertura, row.hora_cierre, descanzo, idtienda], function (error, results, fields) {
+                if (error) throw error;
+                console.log("insert horario correct", index)
+            });
+    })
+
+}
+
 function statusDelivery(idrepartidor) {
     connection.query(`INSERT INTO statusdelivery VALUES(null,?,'${fechaActual()}'`,
         [idrepartidor], function (error, results, fields) {
@@ -574,6 +599,7 @@ function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status
 }
 
 var namephotos = [];
+var logotienda = [];
 const storage = multer.diskStorage({
     destination: path.join(__dirname, 'public/uploads'),
     filename: (req, file, cb) => {
@@ -584,9 +610,20 @@ const storage = multer.diskStorage({
     }
 });
 
-var upload = multer({ storage: storage })
+const storagetienda = multer.diskStorage({
+    destination: path.join(__dirname, 'public/uploads'),
+    filename: (req, file, cb) => {
+        console.log("tienda", __dirname, file)
+        var nombre = uuid() + path.extname(file.originalname).toLocaleLowerCase()
+        logotienda.push(nombre);
+        cb(null, nombre);
+    }
+});
 
-app.post('/api/tienda', upload.array('myFile', 3), async (req, res) => {
+var upload = multer({ storage: storage })
+var uploadtienda = multer({ storage: storagetienda })
+
+app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
     const form = JSON.parse(JSON.stringify(req.body))
     const files = req.files;
     if (!files) {
@@ -594,9 +631,9 @@ app.post('/api/tienda', upload.array('myFile', 3), async (req, res) => {
         error.httpStatusCode = 400
         return next(error)
     }
-    var photosCad = "";
-    namephotos.map((row) => {
-        photosCad = row
+    var logoTien = "";
+    logotienda.map((row) => {
+        logoTien = row
     });
     const {
         hora_apertura,
@@ -618,35 +655,10 @@ app.post('/api/tienda', upload.array('myFile', 3), async (req, res) => {
         repassword,
         status,
         beneficiario,
-        banco
+        banco,
+        horario
     } = form;
-    const logotipo = `${namephotos}`
-
-    // app.post('/api/tienda', function (req, res) {
-    //     const {
-    //         hora_apertura,
-    //         hora_cierre,
-    //         calle,
-    //         numero,
-    //         colonia,
-    //         cp,
-    //         ciudad,
-    //         telefono,
-    //         pagina_web,
-    //         red_social,
-    //         whatsapp,
-    //         nombre_tienda,
-    //         cuentaclabe = "",
-    //         rfc,
-    //         entre_calles,
-    //         password,
-    //         repassword,
-    //         status,
-    //         beneficiario,
-    //         banco,
-    //         logotipo
-    //     } = req.body
-
+    const logotipo = `${logotienda}`
     connection.query(`SELECT * FROM usuario where telefono=? and status=1`,
         [telefono], function (error, resultsusuario, fields) {
             if (error) throw error;
@@ -689,6 +701,7 @@ app.post('/api/tienda', upload.array('myFile', 3), async (req, res) => {
                                     if (error) throw error;
                                     if (results.affectedRows > 0) {
                                         statusTienda(results.insertId)
+                                        insertHorario(results.insertId, horario)
                                         res.json(results);
                                     } else {
                                         res.json([]);
@@ -839,21 +852,21 @@ app.use(express.static(__dirname + '/public'));
 app.use("/api/static", express.static(__dirname + '/public/uploads'));
 
 // start the express App
-// app.listen(9000, function () {
-//     console.log("Working on port 9000");
-// });
+app.listen(9000, function () {
+    console.log("Working on port 9000");
+});
 
 // Starting both http & https servers
 // const httpServer = http.createServer(app);
-const httpsServer = https.createServer(credentials, app);
+// const httpsServer = https.createServer(credentials, app);
 
 // httpServer.listen(9001, () => {
 //     console.log('HTTP Server running on port 9001');
 // });
 
-httpsServer.listen(9000, () => {
-    console.log('HTTPS Server running on port 9000');
-});
+// httpsServer.listen(9000, () => {
+//     console.log('HTTPS Server running on port 9000');
+// });
 
 /**Codigo de notificaciones web push */
 

@@ -47,6 +47,18 @@ CREATE TABLE statusdelivery (
     FOREIGN KEY (idrepartidor) REFERENCES repartidor(idrepartidor)
 );
 
+CREATE TABLE horario (
+    idhorario int NOT NULL AUTO_INCREMENT,
+    dia varchar(250),
+    hora_apertura varchar(250),
+    hora_cierre varchar(250),
+    status_dia char(1),
+    idtienda int,
+    status char(1),
+    PRIMARY KEY (idhorario),
+    FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
+);
+
 CREATE TABLE tienda (
     idtienda int NOT NULL AUTO_INCREMENT,
     hora_apertura varchar(255),

@@ -22,15 +22,15 @@ app.use(bodyParser.urlencoded({
 var async = require('async');
 
 // Certificate
-// const privateKey = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8');
-// const certificate = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8');
-// const ca = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8');
+const privateKey = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8');
+const certificate = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8');
+const ca = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8');
 
-// const credentials = {
-//     key: privateKey,
-//     cert: certificate,
-//     ca: ca
-// };
+const credentials = {
+    key: privateKey,
+    cert: certificate,
+    ca: ca
+};
 
 //Mysql 
 const mysql = require('mysql');
@@ -852,21 +852,21 @@ app.use(express.static(__dirname + '/public'));
 app.use("/api/static", express.static(__dirname + '/public/uploads'));
 
 // start the express App
-app.listen(9000, function () {
-    console.log("Working on port 9000");
-});
+// app.listen(9000, function () {
+//     console.log("Working on port 9000");
+// });
 
 // Starting both http & https servers
 // const httpServer = http.createServer(app);
-// const httpsServer = https.createServer(credentials, app);
+const httpsServer = https.createServer(credentials, app);
 
 // httpServer.listen(9001, () => {
 //     console.log('HTTP Server running on port 9001');
 // });
 
-// httpsServer.listen(9000, () => {
-//     console.log('HTTPS Server running on port 9000');
-// });
+httpsServer.listen(9000, () => {
+    console.log('HTTPS Server running on port 9000');
+});
 
 /**Codigo de notificaciones web push */
 

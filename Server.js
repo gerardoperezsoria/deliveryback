@@ -249,12 +249,9 @@ app.get('/api/ventas', function (req, res) {
 
 
 app.get('/api/productos/:limite', function (req, res) {
-    // app.get('/api/productos', function (req, res) {
     const { limite } = req.params
     const diasemana = getDiaActual()
-    console.log("/api/productos",req.params,diasemana)
-    // connection.query(`SELECT * FROM producto WHERE status=1 ORDER BY idproducto DESC limit ${limite}`, [], function (error, results, fields) {
-    connection.query(`SELECT horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
+    connection.query(`SELECT producto.status, horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
         FROM tienda
         INNER JOIN producto
         ON tienda.idtienda=producto.idtienda
@@ -273,11 +270,50 @@ app.get('/api/productos/:limite', function (req, res) {
     });
 });
 
+/**Solo cambia que se busca por idtienda fucionar con /api/producto en el futuro */
+app.get('/api/productos/:idtienda/:limite', function (req, res) {
+    const { idtienda, limite } = req.params
+    const diasemana = getDiaActual()
+    connection.query(`SELECT horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
+        FROM tienda
+        INNER JOIN producto
+        ON tienda.idtienda=producto.idtienda
+        INNER JOIN statustienda
+        ON statustienda.idtienda=producto.idtienda
+        INNER JOIN horario
+        ON horario.idtienda=producto.idtienda
+        WHERE producto.idtienda=? and producto.status=1 
+        and horario.status_dia=1 and horario.dia=? and horario.status_dia=1 
+        limit ${limite}`, [idtienda, diasemana], function (error, results, fields) {
+        if (error) throw error;
+        if (results.length > 0) {
+            res.json(results);
+        } else {
+            res.json([]);
+        }
+        res.end();
+    });
+});
+
 
 app.get('/api/productoportienda/:idtienda/:limite', function (req, res) {
     const { idtienda, limite = 1 } = req.params
     // connection.query('SELECT * FROM productos WHERE username = ? AND password = ?', [username, password], function (error, results, fields) {
     connection.query(`SELECT * FROM producto WHERE idtienda=? and status=1 ORDER BY idproducto DESC limit ${limite}`,
+        [idtienda, limite], function (error, results, fields) {
+            if (error) throw error;
+            if (results.length > 0) {
+                res.json(results);
+            } else {
+                res.json([]);
+            }
+            res.end();
+        });
+});
+
+app.get('/api/allproductshop/:idtienda', function (req, res) {
+    const { idtienda, limite = 1 } = req.params
+    connection.query(`SELECT * FROM producto WHERE idtienda=?`,
         [idtienda, limite], function (error, results, fields) {
             if (error) throw error;
             if (results.length > 0) {
@@ -314,6 +350,19 @@ app.get('/api/todoslospedidosportienda/:idtienda', function (req, res) {
             }
             res.end();
         });
+});
+
+app.post('/api/updateproductforshop', function (req, res) {
+    const { idtienda, status } = req.body
+    connection.query(`UPDATE producto SET status=? WHERE idtienda=?`, [status, idtienda], function (error, results, fields) {
+        if (error) throw error;
+        if (results.affectedRows > 0) {
+            res.json({ results });
+        } else {
+            res.json([]);
+        }
+        res.end();
+    });
 });
 
 app.post('/api/updatenvioproducto', function (req, res) {
@@ -729,6 +778,7 @@ app.post('/api/producto', upload.array('myFile', 3), async (req, res) => {
     namephotos.map((row) => {
         photosCad = row
     });
+    console.log("photosCad", photosCad, "*", namephotos)
     const {
         nombre,
         fotos = `${namephotos}`,
@@ -757,6 +807,7 @@ app.post('/api/producto', upload.array('myFile', 3), async (req, res) => {
             } else {
                 res.json([]);
             }
+            namephotos = []
             res.end();
         });
 
@@ -851,19 +902,20 @@ app.post('/api/repartidor', upload.array('myFile', 3), async (req, res) => {
 app.use(express.static(__dirname + '/public'));
 app.use("/api/static", express.static(__dirname + '/public/uploads'));
 
-// start the express App
+/**Descomentar para pruebas en local y  comentar para produccion */
 // app.listen(9000, function () {
 //     console.log("Working on port 9000");
 // });
 
 // Starting both http & https servers
 // const httpServer = http.createServer(app);
-const httpsServer = https.createServer(credentials, app);
 
 // httpServer.listen(9001, () => {
 //     console.log('HTTP Server running on port 9001');
 // });
 
+/**Habilitar para produccion */
+const httpsServer = https.createServer(credentials, app);
 httpsServer.listen(9000, () => {
     console.log('HTTPS Server running on port 9000');
 });
@@ -883,7 +935,7 @@ webpush.setVapidDetails('mailto:gerardoperezsoria@gmail.com', publicVapidKey, pr
 
 // app.use(require('body-parser').json());
 
-app.post('/subscribe', (req, res) => {
+app.post('/api/subscribe', (req, res) => {
     const { subscription, idtienda } = req.body;
     console.log("subscription", subscription, idtienda)
     const payload = JSON.stringify({ title: 'Bienvenido a carrery' });
@@ -912,7 +964,7 @@ function sendWebPushNotificaction(subscription, payload) {
 
 }
 
-app.post('/sendwebpushnotification', (req, res) => {
+app.post('/api/sendwebpushnotification', (req, res) => {
     const { idtienda } = req.body;
     const payload = JSON.stringify({ title: 'Pedido nuevo' });
     connection.query(`SELECT * FROM suscriptor where idtienda=? and status=1`,

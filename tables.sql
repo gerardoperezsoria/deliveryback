@@ -297,3 +297,15 @@ ON tienda.idtienda=producto.idtienda
 INNER JOIN statustienda
 ON statustienda.idtienda=producto.idtienda
 WHERE producto.status=1;
+
+
+
+SELECT horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
+        FROM tienda
+        INNER JOIN producto
+        ON tienda.idtienda=producto.idtienda
+        INNER JOIN statustienda
+        ON statustienda.idtienda=producto.idtienda
+        INNER JOIN horario
+        ON horario.idtienda=producto.idtienda
+        WHERE producto.status=1 and horario.status_dia=1 and horario.dia='sabado' and horario.status_dia=1;

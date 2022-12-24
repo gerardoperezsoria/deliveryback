@@ -250,24 +250,7 @@ app.get('/api/ventas', function (req, res) {
 
 app.get('/api/productos/:limite', function (req, res) {
     const { limite } = req.params
-    const diasemana = getDiaActual()
-    console.log(`SELECT producto.status, horario.hora_apertura as hora_apertura_horario,
-    horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,
-    statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, 
-    producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, 
-    tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
-    FROM tienda
-    INNER JOIN producto
-    ON tienda.idtienda=producto.idtienda
-    INNER JOIN statustienda
-    ON statustienda.idtienda=producto.idtienda
-    INNER JOIN horario
-    ON horario.idtienda=producto.idtienda
-    WHERE producto.status=1 and horario.status_dia=1 
-    and horario.dia=(select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' WHEN 2 THEN 'MARTES' WHEN 3 THEN 'MIERCOLES' WHEN 4 THEN 'JUEVES' WHEN 5 THEN 'VIERNES' WHEN
-                     6 THEN 'SABADO' WHEN 7 THEN 'DOMINGO' END) 
-    and horario.status_dia=1 limit ${limite}`)
-
+    // const diasemana = getDiaActual()
     connection.query(`SELECT producto.status, horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
         FROM tienda
         INNER JOIN producto
@@ -276,7 +259,17 @@ app.get('/api/productos/:limite', function (req, res) {
         ON statustienda.idtienda=producto.idtienda
         INNER JOIN horario
         ON horario.idtienda=producto.idtienda
-        WHERE producto.status=1 and horario.status_dia=1 and horario.dia=? and horario.status_dia=1 limit ${limite}`, [diasemana], function (error, results, fields) {
+        WHERE producto.status=1 
+        and horario.status_dia=1 
+        and horario.dia=(select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' 
+                                                                 WHEN 2 THEN 'MARTES' 
+                                                                 WHEN 3 THEN 'MIERCOLES' 
+                                                                 WHEN 4 THEN 'JUEVES' 
+                                                                 WHEN 5 THEN 'VIERNES' 
+                                                                 WHEN 6 THEN 'SABADO' 
+                                                                 WHEN 7 THEN 'DOMINGO' 
+                                                                 END) 
+        and horario.status_dia=1 limit ${limite}`, [], function (error, results, fields) {
         if (error) throw error;
         if (results.length > 0) {
             res.json(results);

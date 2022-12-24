@@ -189,11 +189,14 @@ CREATE TABLE pedido (
     status_repartidor char(1),
     status_tienda char(1),
     autoservicio char(1),
+    notas TINYTEXT,
     status char(1),
     PRIMARY KEY (idpedido),
     INDEX (idpedido),
     FOREIGN KEY (idventa) REFERENCES venta(idventa)
 );
+
+ALTER TABLE pedido ADD COLUMN notas TINYTEXT AFTER autoservicio;
 
 insert into pedido values(
     null,

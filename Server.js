@@ -578,14 +578,14 @@ app.post('/api/venta', function (req, res) {
         ciudad,
         pais,
         cp,
-        nombre
+        nombre, notas
     } = req.body
     connection.query(`INSERT INTO venta VALUES(null,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',1)`,
         [idproducto, cantidad, idtienda, direccion, colonia, estado, ciudad, pais, cp, nombre], function (error, results, fields) {
             if (error) throw error;
             if (results.affectedRows > 0) {
                 res.json({ insertId: results.insertId });
-                insertPedido(results.insertId, 0, idtienda, "", "", "")
+                insertPedido(results.insertId, 0, idtienda, "", "", "", notas)
             } else {
                 res.json([]);
             }
@@ -630,17 +630,29 @@ function statusDelivery(idrepartidor) {
         });
 }
 
-function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status_repartidor = "", status_tienda = "") {
+function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status_repartidor = "", status_tienda = "", notas) {
     connection.query(`SELECT * FROM statustienda where idtienda=?`,
         [idtienda], function (error, resultsstatustienda, fields) {
             if (error) throw error;
-            console.log("statustienda", resultsstatustienda[0].autoservicio)
             const statusautoservicio = resultsstatustienda[0].autoservicio
-
-            connection.query(`INSERT INTO pedido VALUES(null,?,?,?,?,'${fechaActual()}',?,?,?,1)`,
-                [idventa, idrepartidor, idtienda, hora_entrega, status_repartidor, status_tienda, statusautoservicio], function (error, results, fields) {
+            connection.query(`INSERT INTO pedido VALUES(null,?,?,?,?,'${fechaActual()}',?,?,?,?,1)`,
+                [idventa, idrepartidor, idtienda, hora_entrega, status_repartidor, status_tienda, statusautoservicio, notas], function (error, results, fields) {
                     if (error) throw error;
-                    console.log("pedido completado")
+                    
+                    connection.query(`SELECT * FROM suscriptor where idtienda=?`,
+                    [idtienda], function (error, suscriptor, fields) {
+                        if (error) throw error;
+                        const subscription = {
+                            endpoint: suscriptor[0].endpoint,
+                            expirationTime: 500,
+                            keys: {
+                                p256dh: suscriptor[0].p256dh,
+                                auth: suscriptor[0].auth
+                            }
+                        }
+                        const payload = JSON.stringify({ title: 'Hola tienes un pedido desde carrery, entra a carrery.com/customer y prepara el pedido' });
+                        sendWebPushNotificaction(subscription, payload)
+                    });
                 });
 
         });
@@ -939,6 +951,7 @@ app.post('/api/subscribe', (req, res) => {
     const { subscription, idtienda } = req.body;
     console.log("subscription", subscription, idtienda)
     const payload = JSON.stringify({ title: 'Bienvenido a carrery' });
+    const payload2 = JSON.stringify({ title: 'Bienvenido a las notificaciones de carrery.com' });
     res.status(201).json({});
 
     connection.query(`SELECT * FROM suscriptor where idtienda=? and auth=? and status=1`,
@@ -952,6 +965,8 @@ app.post('/api/subscribe', (req, res) => {
                             sendWebPushNotificaction(subscription, payload)
                         }
                     });
+            } else {
+                sendWebPushNotificaction(subscription, payload2)
             }
         });
 });

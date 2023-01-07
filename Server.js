@@ -61,6 +61,12 @@ function getDiaActual() {
     return dias[date.getDay()]
 }
 
+function updatStatusDelivery(idrepartidor, status) {
+    connection.query(`UPDATE statusdelivery SET status=? WHERE idrepartidor=?`, [status, idrepartidor], function (error, results, fields) {
+        if (error) throw error;
+        console.log("update status rider sucess!")
+    });
+}
 
 app.post('/api/authenticationcustomer', function (req, res) {
     const { password, telefono, status } = req.body
@@ -205,10 +211,8 @@ app.get('/api/consultaestatuscustomer/:idtienda', function (req, res) {
 /**Valida si se usa este metodo */
 app.get('/api/pedidoscustomer/:idtienda', function (req, res) {
     const { idtienda } = req.params
-    // connection.query('SELECT * FROM productos WHERE username = ? AND password = ?', [username, password], function (error, results, fields) {
     connection.query(`SELECT * FROM pedido where idtienda=? and status=1 and status_tienda=""`, [idtienda], function (error, results, fields) {
         if (error) throw error;
-        console.log("pedidoscustomer", results)
         if (results.length > 0) {
             res.json(results);
         } else {
@@ -251,7 +255,15 @@ app.get('/api/ventas', function (req, res) {
 app.get('/api/productos/:limite', function (req, res) {
     const { limite } = req.params
     // const diasemana = getDiaActual()
-    connection.query(`SELECT producto.status, horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
+    connection.query(`SELECT 
+        precioenvio.precioenvio,
+        statustienda.autoservicio,
+
+        producto.status, 
+        horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,
+        horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, 
+        producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, 
+        producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
         FROM tienda
         INNER JOIN producto
         ON tienda.idtienda=producto.idtienda
@@ -259,6 +271,10 @@ app.get('/api/productos/:limite', function (req, res) {
         ON statustienda.idtienda=producto.idtienda
         INNER JOIN horario
         ON horario.idtienda=producto.idtienda
+    
+        LEFT JOIN precioenvio
+        ON tienda.idtienda=precioenvio.idtienda
+
         WHERE producto.status=1 
         and horario.status_dia=1 
         and horario.dia=(select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' 
@@ -267,7 +283,7 @@ app.get('/api/productos/:limite', function (req, res) {
                                                                  WHEN 4 THEN 'JUEVES' 
                                                                  WHEN 5 THEN 'VIERNES' 
                                                                  WHEN 6 THEN 'SABADO' 
-                                                                 WHEN 7 THEN 'DOMINGO' 
+                                                                 WHEN 0 THEN 'DOMINGO' 
                                                                  END) 
         and horario.status_dia=1 limit ${limite}`, [], function (error, results, fields) {
         if (error) throw error;
@@ -284,7 +300,11 @@ app.get('/api/productos/:limite', function (req, res) {
 app.get('/api/productos/:idtienda/:limite', function (req, res) {
     const { idtienda, limite } = req.params
     const diasemana = getDiaActual()
-    connection.query(`SELECT horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
+    connection.query(`SELECT horario.hora_apertura as hora_apertura_horario, 
+        horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,
+        statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, 
+        producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, 
+        tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
         FROM tienda
         INNER JOIN producto
         ON tienda.idtienda=producto.idtienda
@@ -350,7 +370,7 @@ app.get('/api/allproductshop/:idtienda', function (req, res) {
 
 app.get('/api/todoslospedidosportienda/:idtienda', function (req, res) {
     const { idtienda } = req.params
-    connection.query(`SELECT * FROM pedido WHERE idtienda=? and status_repartidor="" and idrepartidor=0 and autoservicio=0 and status=1`,
+    connection.query(`SELECT * FROM pedido WHERE idtienda=? and status_repartidor="" and idrepartidor=0 and autoservicio=0 and status_tienda=2 and status=1`,
         [idtienda], function (error, results, fields) {
             if (error) throw error;
             if (results.length > 0) {
@@ -469,6 +489,7 @@ app.post('/api/pedidoupdate', function (req, res) {
             if (results.affectedRows > 0) {
                 if (status_repartidor === 1) {
                     res.json({ result: "OK" });
+                    updatStatusDelivery(idrepartidor, 2)
                     res.end();
                 }
                 if (status_repartidor === 2) {
@@ -477,6 +498,7 @@ app.post('/api/pedidoupdate', function (req, res) {
                             if (error) throw error;
                             if (resultsupdate.affectedRows > 0) {
                                 res.json({ result: "OK" });
+                                updatStatusDelivery(idrepartidor, 1)
                             } else {
                                 res.json([]);
                             }
@@ -486,7 +508,6 @@ app.post('/api/pedidoupdate', function (req, res) {
             } else {
                 res.json({ result: [] });
             }
-            // res.end();
         });
 });
 
@@ -506,11 +527,23 @@ app.get('/api/todoslospedidos/:status', function (req, res) {
 
 app.get('/api/detalleproducto/:idventa/:idtienda', function (req, res) {
     const { idventa, idtienda } = req.params
-    connection.query(`SELECT producto.nombre, producto.fotos, producto.descripcion, venta.cantidad, venta.direccion, venta.colonia, venta.estado, venta.ciudad, venta.pais, venta.cp, venta.nombre 
+    connection.query(`SELECT pedido.notas, pedido.telefono as telefono_cliente, tienda.nombre_tienda, producto.nombre, producto.fotos, producto.descripcion, 
+    usuario.nombre as nombre_negocio, usuario.calle as calle_negocio, usuario.numero as numero_negocio, usuario.colonia as colonia_negocio, usuario.cp as cp_negocio, 
+    usuario.ciudad as ciudad_negocio, usuario.telefono as telefono_negocio, 
+    usuario.entre_calles as entre_calles_negocio,
+    venta.cantidad, venta.direccion, venta.colonia, venta.estado, venta.ciudad, venta.pais, venta.cp, venta.nombre 
     FROM venta
     INNER JOIN producto
     ON venta.idproducto=producto.idproducto
-    WHERE idventa=?`,
+    INNER JOIN tienda
+    ON tienda.idtienda=producto.idtienda
+    INNER JOIN usuario
+    ON tienda.idusuario=usuario.idusuario
+
+    INNER JOIN pedido
+    ON venta.idventa=pedido.idventa
+
+    WHERE venta.idventa=?`,
         [idventa], function (error, results, fields) {
             if (error) throw error;
             if (results.length > 0) {
@@ -588,14 +621,14 @@ app.post('/api/venta', function (req, res) {
         ciudad,
         pais,
         cp,
-        nombre, notas
+        nombre, notas, telefono
     } = req.body
     connection.query(`INSERT INTO venta VALUES(null,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',1)`,
         [idproducto, cantidad, idtienda, direccion, colonia, estado, ciudad, pais, cp, nombre], function (error, results, fields) {
             if (error) throw error;
             if (results.affectedRows > 0) {
                 res.json({ insertId: results.insertId });
-                insertPedido(results.insertId, 0, idtienda, "", "", "", notas)
+                insertPedido(results.insertId, 0, idtienda, "", "", "", notas, telefono)
             } else {
                 res.json([]);
             }
@@ -633,36 +666,36 @@ function insertHorario(idtienda, horario) {
 }
 
 function statusDelivery(idrepartidor) {
-    connection.query(`INSERT INTO statusdelivery VALUES(null,?,'${fechaActual()}'`,
+    connection.query(`INSERT INTO statusdelivery VALUES(null,?,'${fechaActual()}',1,0)`,
         [idrepartidor], function (error, results, fields) {
             if (error) throw error;
             console.log("results", results)
         });
 }
 
-function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status_repartidor = "", status_tienda = "", notas) {
+function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status_repartidor = "", status_tienda = "", notas, telefono) {
     connection.query(`SELECT * FROM statustienda where idtienda=?`,
         [idtienda], function (error, resultsstatustienda, fields) {
             if (error) throw error;
             const statusautoservicio = resultsstatustienda[0].autoservicio
-            connection.query(`INSERT INTO pedido VALUES(null,?,?,?,?,'${fechaActual()}',?,?,?,?,1)`,
-                [idventa, idrepartidor, idtienda, hora_entrega, status_repartidor, status_tienda, statusautoservicio, notas], function (error, results, fields) {
+            connection.query(`INSERT INTO pedido VALUES(null,?,?,?,?,'${fechaActual()}',?,?,?,?,?,1)`,
+                [idventa, idrepartidor, idtienda, hora_entrega, status_repartidor, status_tienda, statusautoservicio, notas, telefono], function (error, results, fields) {
                     if (error) throw error;
-                    
+
                     connection.query(`SELECT * FROM suscriptor where idtienda=?`,
-                    [idtienda], function (error, suscriptor, fields) {
-                        if (error) throw error;
-                        const subscription = {
-                            endpoint: suscriptor[0].endpoint,
-                            expirationTime: 500,
-                            keys: {
-                                p256dh: suscriptor[0].p256dh,
-                                auth: suscriptor[0].auth
+                        [idtienda], function (error, suscriptor, fields) {
+                            if (error) throw error;
+                            const subscription = {
+                                endpoint: suscriptor[0].endpoint,
+                                expirationTime: 500,
+                                keys: {
+                                    p256dh: suscriptor[0].p256dh,
+                                    auth: suscriptor[0].auth
+                                }
                             }
-                        }
-                        const payload = JSON.stringify({ title: 'Hola tienes un pedido desde carrery, entra a carrery.com/customer y prepara el pedido' });
-                        sendWebPushNotificaction(subscription, payload)
-                    });
+                            const payload = JSON.stringify({ title: 'Hola tienes un pedido desde carrery, entra a carrery.com/customer y prepara el pedido' });
+                            sendWebPushNotificaction(subscription, payload)
+                        });
                 });
 
         });
@@ -671,6 +704,7 @@ function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status
 
 var namephotos = [];
 var logotienda = [];
+var photosrepartidor = [];
 const storage = multer.diskStorage({
     destination: path.join(__dirname, 'public/uploads'),
     filename: (req, file, cb) => {
@@ -691,8 +725,18 @@ const storagetienda = multer.diskStorage({
     }
 });
 
+const storagerepartidor = multer.diskStorage({
+    destination: path.join(__dirname, 'public/uploads'),
+    filename: (req, file, cb) => {
+        var nombre = uuid() + path.extname(file.originalname).toLocaleLowerCase()
+        photosrepartidor.push(nombre);
+        cb(null, nombre);
+    }
+});
+
 var upload = multer({ storage: storage })
 var uploadtienda = multer({ storage: storagetienda })
+var uploadrepartidor = multer({ storage: storagerepartidor })
 
 app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
     const form = JSON.parse(JSON.stringify(req.body))
@@ -733,7 +777,6 @@ app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
     connection.query(`SELECT * FROM usuario where telefono=? and status=1`,
         [telefono], function (error, resultsusuario, fields) {
             if (error) throw error;
-            console.log("resultsusuario", resultsusuario.length > 0)
             if (resultsusuario.length > 0) {
                 res.json({ respuesta: "Telefono ya registrado" });
             } else {
@@ -800,7 +843,6 @@ app.post('/api/producto', upload.array('myFile', 3), async (req, res) => {
     namephotos.map((row) => {
         photosCad = row
     });
-    console.log("photosCad", photosCad, "*", namephotos)
     const {
         nombre,
         fotos = `${namephotos}`,
@@ -835,7 +877,7 @@ app.post('/api/producto', upload.array('myFile', 3), async (req, res) => {
 
 })
 
-app.post('/api/repartidor', upload.array('myFile', 3), async (req, res) => {
+app.post('/api/repartidor', uploadrepartidor.array('myFile', 12), async (req, res) => {
     const form = JSON.parse(JSON.stringify(req.body))
     const files = req.files;
     if (!files) {
@@ -844,7 +886,7 @@ app.post('/api/repartidor', upload.array('myFile', 3), async (req, res) => {
         return next(error)
     }
     var photosCad = "";
-    namephotos.map((row) => {
+    photosrepartidor.map((row) => {
         photosCad = row
     });
     const {
@@ -854,7 +896,7 @@ app.post('/api/repartidor', upload.array('myFile', 3), async (req, res) => {
         curp,
         rfc,
         direccion,
-        documentos = `${photosCad}`,
+        documentos = `${photosrepartidor}`,
         fecha_nacimiento,
         referencia,
         apellido_paterno,
@@ -872,51 +914,60 @@ app.post('/api/repartidor', upload.array('myFile', 3), async (req, res) => {
         cuentaclabe
     } = form;
 
-    connection.query(`INSERT INTO usuario VALUES(null,?,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',?)`,
-        [
-            nombre,
-            calle,
-            numero,
-            colonia,
-            cp,
-            ciudad,
-            telefono,
-            rfc,
-            entre_calles,
-            password,
-            repassword,
-            status
-        ], function (error, resultsuser, fields) {
+    connection.query(`SELECT * FROM usuario where telefono=? and status=3`,
+        [telefono], function (error, resultsusuario, fields) {
             if (error) throw error;
-            if (resultsuser.affectedRows > 0) {
-                connection.query(`INSERT INTO repartidor VALUES(null,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',1)`,
+            if (resultsusuario.length > 0) {
+                res.json({ respuesta: "Telefono ya registrado" });
+            } else {
+                connection.query(`INSERT INTO usuario VALUES(null,?,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',?)`,
                     [
-                        ine,
-                        curp,
-                        documentos,
-                        fecha_nacimiento,
-                        referencia,
-                        apellido_paterno,
-                        apellido_materno,
-                        vehiculo,
-                        cuentaclabe,
-                        idusuario = resultsuser.insertId
-                    ],
-                    function (error, results, fields) {
+                        nombre,
+                        calle,
+                        numero,
+                        colonia,
+                        cp,
+                        ciudad,
+                        telefono,
+                        rfc,
+                        entre_calles,
+                        password,
+                        repassword,
+                        status
+                    ], function (error, resultsuser, fields) {
                         if (error) throw error;
-                        if (results.affectedRows > 0) {
-                            res.json(results);
-                            statusDelivery(results.insertId)
+                        if (resultsuser.affectedRows > 0) {
+                            connection.query(`INSERT INTO repartidor VALUES(null,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',1)`,
+                                [
+                                    ine,
+                                    curp,
+                                    documentos,
+                                    fecha_nacimiento,
+                                    referencia,
+                                    apellido_paterno,
+                                    apellido_materno,
+                                    vehiculo,
+                                    cuentaclabe,
+                                    idusuario = resultsuser.insertId
+                                ],
+                                function (error, results, fields) {
+                                    if (error) throw error;
+                                    if (results.affectedRows > 0) {
+                                        res.json(results);
+                                        statusDelivery(results.insertId)
+                                    } else {
+                                        res.json([]);
+                                    }
+                                    photosrepartidor = []
+                                    res.end();
+                                });
+
                         } else {
                             res.json([]);
                         }
-                        res.end();
+                        // res.end();
                     });
-
-            } else {
-                res.json([]);
             }
-            // res.end();
         });
 })
 
@@ -979,6 +1030,49 @@ app.post('/api/subscribe', (req, res) => {
                 sendWebPushNotificaction(subscription, payload2)
             }
         });
+});
+
+app.post('/api/precioentregaportienda', (req, res) => {
+    const { precioentrega, idtienda } = req.body;
+
+    connection.query(`SELECT * FROM precioenvio where idtienda=? and status=1`, [idtienda], function (error, resultsselect, fields) {
+        if (error) throw error;
+        if (resultsselect.length > 0) {
+            connection.query(`UPDATE precioenvio SET precioenvio=? where idtienda=? and status=1`,
+                [precioentrega, idtienda], function (error, resultsupdate, fields) {
+                    if (error) throw error;
+                    console.log("update precio envio",resultsupdate)
+                    res.json({ respuesta: "Precio actualizado correctamente." });
+                    res.end();
+                });
+        } else {
+            connection.query(`INSERT INTO precioenvio VALUES(null,?, ?, '${fechaActual()}', 1)`,
+                [idtienda, precioentrega], function (error, resultsinsert, fields) {
+                    if (error) throw error;
+                    if (resultsinsert.affectedRows > 0) {
+                        res.json({ respuesta: "Precio guardado correctamente." });
+                        res.end();
+                    } else {
+                        res.json([]);
+                        res.end();
+                    }
+                });
+        }
+
+    });
+});
+
+app.get('/api/precioentregaportienda/:idtienda', function (req, res) {
+    const { idtienda } = req.params
+    connection.query(`SELECT * FROM precioenvio where idtienda=? and status=1`, [idtienda], function (error, results, fields) {
+        if (error) throw error;
+        if (results.length > 0) {
+            res.json(results);
+        } else {
+            res.json([]);
+        }
+        res.end();
+    });
 });
 
 function sendWebPushNotificaction(subscription, payload) {

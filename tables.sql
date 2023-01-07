@@ -43,9 +43,12 @@ CREATE TABLE statusdelivery (
     idrepartidor int,
     fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status char(1),
+    statusaprovacion char(1),
     PRIMARY KEY (idstatusdelivery),
     FOREIGN KEY (idrepartidor) REFERENCES repartidor(idrepartidor)
 );
+
+ALTER TABLE tienda ADD COLUMN statusaprovacion char(1) AFTER status;
 
 CREATE TABLE horario (
     idhorario int NOT NULL AUTO_INCREMENT,
@@ -190,6 +193,7 @@ CREATE TABLE pedido (
     status_tienda char(1),
     autoservicio char(1),
     notas TINYTEXT,
+    telefono varchar(255),
     status char(1),
     PRIMARY KEY (idpedido),
     INDEX (idpedido),
@@ -197,6 +201,7 @@ CREATE TABLE pedido (
 );
 
 ALTER TABLE pedido ADD COLUMN notas TINYTEXT AFTER autoservicio;
+ALTER TABLE pedido ADD COLUMN telefono varchar(255) AFTER notas;
 
 insert into pedido values(
     null,
@@ -240,6 +245,17 @@ create table suscriptor(
     status char(1),
     PRIMARY KEY (idsuscriptor),
     INDEX (idsuscriptor),
+    FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
+);
+
+create table precioenvio(
+    idprecioenvio int NOT NULL AUTO_INCREMENT,
+    idtienda int,
+    precioenvio double(13,2),
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status char(1),
+    PRIMARY KEY (idprecioenvio),
+    INDEX (idprecioenvio),
     FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
 );
 
@@ -323,3 +339,12 @@ SELECT horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hor
         INNER JOIN horario
         ON horario.idtienda=producto.idtienda
         WHERE producto.status=1 and horario.status_dia=1 and horario.dia="viernes" and horario.status_dia=1 limit 50;
+
+        select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' 
+                                                                 WHEN 2 THEN 'MARTES' 
+                                                                 WHEN 3 THEN 'MIERCOLES' 
+                                                                 WHEN 4 THEN 'JUEVES' 
+                                                                 WHEN 5 THEN 'VIERNES' 
+                                                                 WHEN 6 THEN 'SABADO' 
+                                                                 WHEN 7 THEN 'DOMINGO' 
+                                                                 END) 

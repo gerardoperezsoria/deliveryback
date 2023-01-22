@@ -2,7 +2,7 @@ var express = require("express");
 var multer = require('multer');
 var http = require('http');
 var https = require('https');
-
+const ipstack = require('ipstack')
 var fs = require('fs');
 var util = require('util');
 const cors = require('cors')
@@ -11,6 +11,8 @@ const { v4: uuid } = require('uuid');
 var bodyParser = require('body-parser');
 const path = require('path');
 var app = express();
+var fetch = require("node-fetch")
+
 app.use(cors())
 // app.use(fileUpload())
 app.use(bodyParser.json());
@@ -18,9 +20,6 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
     extended: true
 }));
-
-var async = require('async');
-
 // Certificate
 const privateKey = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8');
 const certificate = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8');
@@ -50,6 +49,31 @@ function fechaActual() {
     return fechaYHora
 }
 
+async function sendNotificationWhatsApp(message, phone) {
+    try {
+        const data = {
+            "message": `${message}`,
+            "phone": `521${phone}`
+        }
+        const url = "http://localhost:3001/lead"
+        const response = await fetch(url, {
+            method: 'POST',
+            mode: 'cors',
+            cache: 'no-cache',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            redirect: 'follow',
+            referrerPolicy: 'no-referrer',
+            body: JSON.stringify(data)
+        });
+        const respuesta = await response.json()
+        console.log(respuesta)
+    } catch (error) {
+        console.log(error)
+    }
+}
 
 let dias = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"];
 let meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -67,6 +91,73 @@ function updatStatusDelivery(idrepartidor, status) {
         console.log("update status rider sucess!")
     });
 }
+
+var async = require('async');
+// ipstack {
+//     ip: '177.242.220.135',
+//     type: 'ipv4',
+//     continent_code: 'NA',
+//     continent_name: 'North America',
+//     country_code: 'MX',
+//     country_name: 'Mexico',
+//     region_code: 'MIC',
+//     region_name: 'Michoacán',
+//     city: 'Heróica Zitácuaro',
+//     zip: '61508',
+//     latitude: 19.438079833984375,
+//     longitude: -100.34561920166016,
+//     location: {
+//       geoname_id: 4004885,
+//       capital: 'Mexico City',
+//       languages: [ [Object] ],
+//       country_flag: 'https://assets.ipstack.com/flags/mx.svg',
+//       country_flag_emoji: '🇲🇽',
+//       country_flag_emoji_unicode: 'U+1F1F2 U+1F1FD',
+//       calling_code: '52',
+//       is_eu: false
+//     }
+//   }  
+
+app.get('/api/getcountry/:ippublica', function (req, res) {
+    const { ippublica } = req.params
+    ipstack(ippublica, "8d3f310fb7d007000e4397addaa5c975", (err, response) => {
+        // res.json({ code_country: response.country_code, zip: response.zip });
+        res.json(response);
+        res.end();
+    })
+    // connection.query(`SELECT * FROM statusdelivery where idrepartidor=?`, [idrepartidor], function (error, results, fields) {
+    //     if (error) throw error;
+    //     if (results.length > 0) {
+    //         res.json(results);
+    //     } else {
+    //         res.json([]);
+    //     }
+    //     res.end();
+    // });
+});
+
+app.post('/api/authenticationshoper', function (req, res) {
+    const { password, telefono, status } = req.body
+    connection.query(`SELECT idusuario FROM usuario where password=? and telefono=? and status=?`, [password, telefono, status], function (error, results, fields) {
+        if (error) throw error;
+        if (results.length > 0) {
+            const { idusuario } = results[0]
+            connection.query(`SELECT idshoper FROM shoper where idusuario=?`,
+                [idusuario], function (error, resultstienda, fields) {
+                    if (error) throw error;
+                    if (resultstienda.length > 0) {
+                        res.json(resultstienda);
+                    } else {
+                        res.json([]);
+                    }
+                    res.end();
+                });
+        } else {
+            res.json([]);
+        }
+        // res.end();
+    });
+});
 
 app.post('/api/authenticationcustomer', function (req, res) {
     const { password, telefono, status } = req.body
@@ -252,8 +343,8 @@ app.get('/api/ventas', function (req, res) {
 });
 
 
-app.get('/api/productos/:limite', function (req, res) {
-    const { limite } = req.params
+app.get('/api/productos/:limite/:zona', function (req, res) {
+    const { limite, zona } = req.params
     // const diasemana = getDiaActual()
     connection.query(`SELECT 
         precioenvio.precioenvio,
@@ -271,11 +362,13 @@ app.get('/api/productos/:limite', function (req, res) {
         ON statustienda.idtienda=producto.idtienda
         INNER JOIN horario
         ON horario.idtienda=producto.idtienda
-    
+        INNER JOIN usuario
+        ON usuario.idusuario=tienda.idusuario
         LEFT JOIN precioenvio
         ON tienda.idtienda=precioenvio.idtienda
 
         WHERE producto.status=1 
+        and usuario.cp like '${zona}%'
         and horario.status_dia=1 
         and horario.dia=(select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' 
                                                                  WHEN 2 THEN 'MARTES' 
@@ -695,11 +788,16 @@ function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status
                             }
                             const payload = JSON.stringify({ title: 'Hola tienes un pedido desde carrery, entra a carrery.com/customer y prepara el pedido' });
                             sendWebPushNotificaction(subscription, payload)
+                            //**send whatsapp to admin */
+                            sendNotificationWhatsApp("Se genero una venta ahora", "5217151049009")
+                            //**send whatsapp riders */
+                            sendNotificationWhatsApp("Se ha agregado un pedido al pull de entregas, es tu oportunidad de generar ingresos", "5217151049009")
+                            //**send whatsapp customer */
+                            sendNotificationWhatsApp("Tienes un pedido nuevo desde carrery.com", "5217151049009")
+                            console.log("telefono", telefono)
                         });
                 });
-
         });
-
 }
 
 var namephotos = [];
@@ -708,7 +806,6 @@ var photosrepartidor = [];
 const storage = multer.diskStorage({
     destination: path.join(__dirname, 'public/uploads'),
     filename: (req, file, cb) => {
-        console.log("xxx", __dirname, file)
         var nombre = uuid() + path.extname(file.originalname).toLocaleLowerCase()
         namephotos.push(nombre);
         cb(null, nombre);
@@ -718,7 +815,6 @@ const storage = multer.diskStorage({
 const storagetienda = multer.diskStorage({
     destination: path.join(__dirname, 'public/uploads'),
     filename: (req, file, cb) => {
-        console.log("tienda", __dirname, file)
         var nombre = uuid() + path.extname(file.originalname).toLocaleLowerCase()
         logotienda.push(nombre);
         cb(null, nombre);
@@ -877,6 +973,102 @@ app.post('/api/producto', upload.array('myFile', 3), async (req, res) => {
 
 })
 
+app.post('/api/shoper',
+    uploadrepartidor.array('myFile', 12), 
+    async (req, res) => {
+        const form = JSON.parse(JSON.stringify(req.body))
+        console.log("shoper",req.body)
+        // const files = req.files;
+        // if (!files) {
+        //     const error = new Error('Please choose files')
+        //     error.httpStatusCode = 400
+        //     return next(error)
+        // }
+        // var photosCad = "";
+        // photosrepartidor.map((row) => {
+        //     photosCad = row
+        // });
+        const {
+            whatsapp,
+            nombre,
+            telefono,
+            calle,
+            numero,
+            colonia,
+            cp,
+            ciudad,
+            password,
+            repassword,
+            rfc = "",
+            entre_calles = "",
+        } = form;
+        console.log("datos shoper",
+            whatsapp,
+            nombre,
+            telefono,
+            calle,
+            numero,
+            colonia,
+            cp,
+            ciudad,
+            password,
+            repassword,
+            rfc,
+            entre_calles,
+        )
+        connection.query(`SELECT * FROM usuario where telefono=? and status=4`,
+            [telefono], function (error, resultsusuario, fields) {
+                if (error) throw error;
+                console.log("test shoper", resultsusuario)
+                if (resultsusuario.length > 0) {
+                    res.json({ respuesta: "Telefono ya registrado" });
+                } else {
+                    connection.query(`INSERT INTO usuario VALUES(null,?,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',4)`,
+                        [
+                            nombre,
+                            calle,
+                            numero,
+                            colonia,
+                            cp,
+                            ciudad,
+                            telefono,
+                            rfc,
+                            entre_calles,
+                            password,
+                            repassword
+                        ], function (error, resultsuser, fields) {
+                            if (error) throw error;
+                            if (resultsuser.affectedRows > 0) {
+                                connection.query(`INSERT INTO shoper VALUES(null,?,?,?,?,?,'${fechaActual()}',?,1)`,
+                                    [
+                                        nombre,
+                                        telefono,
+                                        whatsapp,
+                                        password,
+                                        repassword,
+                                        idusuario = resultsuser.insertId
+                                    ],
+                                    function (error, results, fields) {
+                                        if (error) throw error;
+                                        if (results.affectedRows > 0) {
+                                            res.json(results);
+                                            // statusDelivery(results.insertId)
+                                        } else {
+                                            res.json([]);
+                                        }
+                                        // photosrepartidor = []
+                                        res.end();
+                                    });
+
+                            } else {
+                                res.json([]);
+                            }
+                            // res.end();
+                        });
+                }
+            });
+    })
+
 app.post('/api/repartidor', uploadrepartidor.array('myFile', 12), async (req, res) => {
     const form = JSON.parse(JSON.stringify(req.body))
     const files = req.files;
@@ -997,6 +1189,7 @@ httpsServer.listen(9000, () => {
 
 // const express = require('express');
 const webpush = require('web-push');
+const { response } = require("express");
 require('dotenv').config()
 const publicVapidKey = process.env.PUBLIC_VAPID_KEY || "BEFrsWe2_uFEwCR3ah1H_hIySquR7z4wsrSqey6U_rZYcBa317--cN_WhHPoB_6tyjcnB7SRko_n0QXtuGHqvEc";
 const privateVapidKey = process.env.PRIVATE_VAPID_KEY || "EuD4MQ1ev_l-8LL0_4HA9DlMEnxa3V7nns2-xhvlI_o";
@@ -1041,7 +1234,7 @@ app.post('/api/precioentregaportienda', (req, res) => {
             connection.query(`UPDATE precioenvio SET precioenvio=? where idtienda=? and status=1`,
                 [precioentrega, idtienda], function (error, resultsupdate, fields) {
                     if (error) throw error;
-                    console.log("update precio envio",resultsupdate)
+                    console.log("update precio envio", resultsupdate)
                     res.json({ respuesta: "Precio actualizado correctamente." });
                     res.end();
                 });

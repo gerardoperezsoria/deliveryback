@@ -48,7 +48,7 @@ CREATE TABLE statusdelivery (
     FOREIGN KEY (idrepartidor) REFERENCES repartidor(idrepartidor)
 );
 
-ALTER TABLE tienda ADD COLUMN statusaprovacion char(1) AFTER status;
+ALTER TABLE statusdelivery ADD COLUMN statusaprovacion char(1) AFTER status;
 
 CREATE TABLE horario (
     idhorario int NOT NULL AUTO_INCREMENT,
@@ -259,6 +259,21 @@ create table precioenvio(
     FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
 );
 
+create table shoper (
+    idshoper int NOT NULL AUTO_INCREMENT,
+    nombre varchar(255),
+    telefono varchar(255),
+    whatsapp varchar(255),
+    password varchar(255),
+    repassword varchar(255),
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    idusuario int,
+    status char(1),
+    PRIMARY KEY (idshoper),
+    INDEX (idshoper),
+    FOREIGN KEY (idusuario) REFERENCES usuario(idusuario)
+);
+
 ALTER TABLE repartidor ADD COLUMN idusuario int AFTER cuentaclabe;
 ALTER TABLE repartidor ADD FOREIGN KEY(idusuario) REFERENCES usuario(idusuario);
 
@@ -348,3 +363,42 @@ SELECT horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hor
                                                                  WHEN 6 THEN 'SABADO' 
                                                                  WHEN 7 THEN 'DOMINGO' 
                                                                  END) 
+
+
+                                                                 SELECT 
+        precioenvio.precioenvio,
+        statustienda.autoservicio,
+
+        producto.status, 
+        horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,
+        horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, 
+        producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, 
+        producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
+        FROM tienda
+        INNER JOIN producto
+        ON tienda.idtienda=producto.idtienda
+        INNER JOIN statustienda
+        ON statustienda.idtienda=producto.idtienda
+        INNER JOIN horario
+        ON horario.idtienda=producto.idtienda
+    
+        LEFT JOIN precioenvio
+        ON tienda.idtienda=precioenvio.idtienda
+
+        WHERE producto.status=1 
+        and horario.status_dia=1 
+        and horario.dia=(select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' 
+                                                                 WHEN 2 THEN 'MARTES' 
+                                                                 WHEN 3 THEN 'MIERCOLES' 
+                                                                 WHEN 4 THEN 'JUEVES' 
+                                                                 WHEN 5 THEN 'VIERNES' 
+                                                                 WHEN 6 THEN 'SABADO' 
+                                                                 WHEN 0 THEN 'DOMINGO' 
+                                                                 END) 
+        and horario.status_dia=1 limit 50;
+
+
+        select DATE_FORMAT(curdate(),'%w')
+
+/**Borrar un campo de una tabla mysql*/
+        alter table statusdelivery drop statusaprovacion;

@@ -390,9 +390,25 @@ app.get('/api/productos/:limite/:zona', function (req, res) {
 });
 
 /**Solo cambia que se busca por idtienda fucionar con /api/producto en el futuro */
-app.get('/api/productos/:idtienda/:limite', function (req, res) {
+app.get('/api/tiendas/:idtienda/:limite', function (req, res) {
     const { idtienda, limite } = req.params
     const diasemana = getDiaActual()
+    
+    console.log("query",`SELECT horario.hora_apertura as hora_apertura_horario, 
+    horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,
+    statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, 
+    producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, 
+    tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
+    FROM tienda
+    INNER JOIN producto
+    ON tienda.idtienda=producto.idtienda
+    INNER JOIN statustienda
+    ON statustienda.idtienda=producto.idtienda
+    INNER JOIN horario
+    ON horario.idtienda=producto.idtienda
+    WHERE producto.idtienda=${idtienda} and producto.status=1 
+    and horario.status_dia=1 and horario.dia=${diasemana} and horario.status_dia=1 
+    limit 50`)
     connection.query(`SELECT horario.hora_apertura as hora_apertura_horario, 
         horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,
         statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, 
@@ -789,11 +805,16 @@ function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status
                             const payload = JSON.stringify({ title: 'Hola tienes un pedido desde carrery, entra a carrery.com/customer y prepara el pedido' });
                             sendWebPushNotificaction(subscription, payload)
                             //**send whatsapp to admin */
-                            sendNotificationWhatsApp("Se genero una venta ahora", "5217151049009")
-                            //**send whatsapp riders */
-                            sendNotificationWhatsApp("Se ha agregado un pedido al pull de entregas, es tu oportunidad de generar ingresos", "5217151049009")
+                            sendNotificationWhatsApp("Se genero una venta real en carrery, revisa el seguimiento", "5217151049009")
+                            //**send whatsapp cliente */
+                            sendNotificationWhatsApp(`Tu pedido se ha realizado con exito, ya se esta procesando. Puedes rastrear tu pedido en carrery.com/seguimiento/numero-rastreo con este numero de pedido ${idventa}`, `521${telefono}`)
                             //**send whatsapp customer */
-                            sendNotificationWhatsApp("Tienes un pedido nuevo desde carrery.com", "5217151049009")
+                            connection.query(`SELECT * FROM tienda where idtienda=${idtienda}`,
+                                [], function (error, resultnotification, fields) {
+                                    if (error) throw error;
+                                    sendNotificationWhatsApp("Tienes un pedido nuevo desde carrery ingresa a tu dashboard de negocio en carrery.com/customer", `521${resultnotification[0].whatsapp}`)
+                                });
+
                             console.log("telefono", telefono)
                         });
                 });
@@ -870,11 +891,12 @@ app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
         horario
     } = form;
     const logotipo = `${logotienda}`
-    connection.query(`SELECT * FROM usuario where telefono=? and status=1`,
+    connection.query(`SELECT * FROM usuario where telefono=? and status=2`,
         [telefono], function (error, resultsusuario, fields) {
             if (error) throw error;
+            console.log("resultsusuario tienda",resultsusuario)
             if (resultsusuario.length > 0) {
-                res.json({ respuesta: "Telefono ya registrado" });
+                res.json({ respuesta: "Telefono ya registrado, si crees que es un error contacta a soporte" });
             } else {
                 connection.query(`INSERT INTO usuario VALUES(null,?,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',?)`,
                     [
@@ -916,6 +938,7 @@ app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
                                     } else {
                                         res.json([]);
                                     }
+                                    namephotos = []
                                     res.end();
                                 });
                         } else {
@@ -970,14 +993,13 @@ app.post('/api/producto', upload.array('myFile', 3), async (req, res) => {
             namephotos = []
             res.end();
         });
-
 })
 
 app.post('/api/shoper',
-    uploadrepartidor.array('myFile', 12), 
+    uploadrepartidor.array('myFile', 12),
     async (req, res) => {
         const form = JSON.parse(JSON.stringify(req.body))
-        console.log("shoper",req.body)
+        console.log("shoper", req.body)
         // const files = req.files;
         // if (!files) {
         //     const error = new Error('Please choose files')
@@ -1002,26 +1024,12 @@ app.post('/api/shoper',
             rfc = "",
             entre_calles = "",
         } = form;
-        console.log("datos shoper",
-            whatsapp,
-            nombre,
-            telefono,
-            calle,
-            numero,
-            colonia,
-            cp,
-            ciudad,
-            password,
-            repassword,
-            rfc,
-            entre_calles,
-        )
+
         connection.query(`SELECT * FROM usuario where telefono=? and status=4`,
             [telefono], function (error, resultsusuario, fields) {
                 if (error) throw error;
-                console.log("test shoper", resultsusuario)
                 if (resultsusuario.length > 0) {
-                    res.json({ respuesta: "Telefono ya registrado" });
+                    res.json({ respuesta: "Telefono ya registrado, si crees que es un error contacta a soporte" });
                 } else {
                     connection.query(`INSERT INTO usuario VALUES(null,?,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',4)`,
                         [
@@ -1110,7 +1118,7 @@ app.post('/api/repartidor', uploadrepartidor.array('myFile', 12), async (req, re
         [telefono], function (error, resultsusuario, fields) {
             if (error) throw error;
             if (resultsusuario.length > 0) {
-                res.json({ respuesta: "Telefono ya registrado" });
+                res.json({ respuesta: "Telefono ya registrado, si crees que es un error contacta a soporte" });
             } else {
                 connection.query(`INSERT INTO usuario VALUES(null,?,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',?)`,
                     [
@@ -1252,6 +1260,20 @@ app.post('/api/precioentregaportienda', (req, res) => {
                 });
         }
 
+    });
+});
+
+
+app.get('/api/categorias', function (req, res) {
+    const { idtienda } = req.params
+    connection.query(`select categoria from producto  where categoria is not null group by categoria`, [], function (error, results, fields) {
+        if (error) throw error;
+        if (results.length > 0) {
+            res.json(results);
+        } else {
+            res.json([]);
+        }
+        res.end();
     });
 });
 

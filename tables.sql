@@ -364,8 +364,7 @@ SELECT horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hor
                                                                  WHEN 7 THEN 'DOMINGO' 
                                                                  END) 
 
-
-                                                                 SELECT 
+SELECT 
         precioenvio.precioenvio,
         statustienda.autoservicio,
 
@@ -381,11 +380,13 @@ SELECT horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hor
         ON statustienda.idtienda=producto.idtienda
         INNER JOIN horario
         ON horario.idtienda=producto.idtienda
-    
+        INNER JOIN usuario
+        ON usuario.idusuario=tienda.idusuario
         LEFT JOIN precioenvio
         ON tienda.idtienda=precioenvio.idtienda
 
         WHERE producto.status=1 
+        and usuario.cp like '615%'
         and horario.status_dia=1 
         and horario.dia=(select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' 
                                                                  WHEN 2 THEN 'MARTES' 
@@ -402,3 +403,21 @@ SELECT horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hor
 
 /**Borrar un campo de una tabla mysql*/
         alter table statusdelivery drop statusaprovacion;
+
+
+
+        SELECT horario.hora_apertura as hora_apertura_horario, 
+        horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,
+        statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, 
+        producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, 
+        tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
+        FROM tienda
+        INNER JOIN producto
+        ON tienda.idtienda=producto.idtienda
+        INNER JOIN statustienda
+        ON statustienda.idtienda=producto.idtienda
+        INNER JOIN horario
+        ON horario.idtienda=producto.idtienda
+        WHERE producto.idtienda=62 and producto.status=1 
+        and horario.status_dia=1 and horario.dia='DOMINGO' and horario.status_dia=1 
+        limit 50;

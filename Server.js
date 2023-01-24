@@ -53,9 +53,9 @@ async function sendNotificationWhatsApp(message, phone) {
     try {
         const data = {
             "message": `${message}`,
-            "phone": `521${phone}`
+            "phone": `${phone}`
         }
-        const url = "http://localhost:3001/lead"
+        const url = "http://34.135.251.190:3001/lead"
         const response = await fetch(url, {
             method: 'POST',
             mode: 'cors',
@@ -1291,7 +1291,6 @@ app.get('/api/precioentregaportienda/:idtienda', function (req, res) {
 });
 
 function sendWebPushNotificaction(subscription, payload) {
-    console.log(subscription);
     webpush.sendNotification(subscription, payload).catch(error => {
         console.error(error.stack);
     });

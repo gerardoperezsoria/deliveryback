@@ -142,7 +142,8 @@ app.post('/api/authenticationshoper', function (req, res) {
         if (error) throw error;
         if (results.length > 0) {
             const { idusuario } = results[0]
-            connection.query(`SELECT idshoper FROM shoper where idusuario=?`,
+            connection.query(`SELECT s.idshoper,u.nombre, u.calle, u.numero, u.colonia, u.cp, u.ciudad, u.telefono 
+                              FROM shoper as s INNER JOIN usuario as u ON s.idusuario=u.idusuario where s.idusuario=?`,
                 [idusuario], function (error, resultstienda, fields) {
                     if (error) throw error;
                     if (resultstienda.length > 0) {
@@ -393,8 +394,8 @@ app.get('/api/productos/:limite/:zona', function (req, res) {
 app.get('/api/tiendas/:idtienda/:limite', function (req, res) {
     const { idtienda, limite } = req.params
     const diasemana = getDiaActual()
-    
-    console.log("query",`SELECT horario.hora_apertura as hora_apertura_horario, 
+
+    console.log("query", `SELECT horario.hora_apertura as hora_apertura_horario, 
     horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,
     statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, 
     producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, 
@@ -771,6 +772,31 @@ function insertHorario(idtienda, horario) {
                 console.log("insert horario correct", index)
             });
     })
+}
+
+function updateHorario(idtienda, horario) {
+    const objhorario = JSON.parse(horario)
+    objhorario.map((row, index) => {
+        const diadescanzo = row.descanzo
+        let descanzo = 0
+        if (diadescanzo) {
+            descanzo = 1
+        }
+        if (!diadescanzo) {
+            descanzo = 0
+        }
+
+        connection.query(`UPDATE horario SET 
+        hora_apertura = ?,
+        hora_cierre = ?,
+        status_dia = ?
+        WHERE idtienda = ? and dia=?
+        `,
+            [row.hora_apertura, row.hora_cierre, descanzo, idtienda, row.dia], function (error, results, fields) {
+                if (error) throw error;
+                console.log("update horario correct", index)
+            });
+    })
 
 }
 
@@ -894,7 +920,7 @@ app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
     connection.query(`SELECT * FROM usuario where telefono=? and status=2`,
         [telefono], function (error, resultsusuario, fields) {
             if (error) throw error;
-            console.log("resultsusuario tienda",resultsusuario)
+            console.log("resultsusuario tienda", resultsusuario)
             if (resultsusuario.length > 0) {
                 res.json({ respuesta: "Telefono ya registrado, si crees que es un error contacta a soporte" });
             } else {
@@ -947,6 +973,109 @@ app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
                         // res.end();
                     });
             }
+        });
+});
+
+app.post('/api/updatetienda', uploadtienda.array('myFile', 3), async (req, res) => {
+    const form = JSON.parse(JSON.stringify(req.body))
+    const files = req.files;
+    if (!files) {
+        const error = new Error('Please choose files')
+        error.httpStatusCode = 400
+        return next(error)
+    }
+    var logoTien = "";
+    logotienda.map((row) => {
+        logoTien = row
+    });
+    const {
+        horap,
+        horac,
+        calle,
+        numero,
+        colonia,
+        cp,
+        ciudad,
+        telefono,
+        paginaw,
+        reds,
+        whatsapp,
+        nombre_tienda,
+        rfc,
+        cuentaclabe,
+        password,
+        repassword,
+        beneficiario,
+        banco,
+        horario,
+        idusuario,
+        idtienda
+    } = form;
+    const logotipo = `${logotienda}`
+    connection.query(`UPDATE tienda SET 
+    whatsapp = ?,
+    nombre_tienda = ?,
+    cuentaclabe = ?,
+    beneficiario = ?,
+    banco = ? 
+    WHERE idtienda=${idtienda}`,
+        [
+            whatsapp,
+            nombre_tienda,
+            cuentaclabe,
+            beneficiario,
+            banco
+        ], function (error, resultsuser, fields) {
+            if (error) throw error;
+            if (resultsuser.affectedRows > 0) {
+                connection.query(`UPDATE usuario SET 
+                nombre = ?,
+                calle = ?,
+                numero = ?,
+                colonia = ?,
+                cp = ?,
+                ciudad = ?,
+                telefono = ?,
+                password = ?,
+                repassword = ? 
+                WHERE idusuario=?
+                `,
+                    [
+                        nombre_tienda,
+                        calle,
+                        numero,
+                        colonia,
+                        cp,
+                        ciudad,
+                        telefono,
+                        password,
+                        repassword,
+                        idusuario
+                    ],
+                    function (error, results, fields) {
+                        if (error) throw error;
+                        updateHorario(idtienda, horario)
+                        res.json(results);
+                        namephotos = []
+                        res.end();
+                    });
+            } else {
+                res.json([]);
+            }
+            // res.end();
+        });
+});
+
+app.get('/api/miinfotienda/:idtienda', function (req, res) {
+    const { idtienda } = req.params
+    connection.query(`SELECT * FROM usuario as u 
+                      INNER JOIN tienda as t on u.idusuario=t.idusuario 
+                      INNER JOIN horario as h on h.idtienda=t.idtienda 
+                      WHERE t.idtienda=${idtienda}`,
+        [], function (error, resultspedido, fields) {
+            if (error) throw error;
+            res.json(resultspedido);
+            res.end();
         });
 });
 

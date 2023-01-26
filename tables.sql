@@ -274,6 +274,24 @@ create table shoper (
     FOREIGN KEY (idusuario) REFERENCES usuario(idusuario)
 );
 
+create table riderlevel2 (
+    riderlevel2 int NOT NULL AUTO_INCREMENT,
+    whatsapp varchar(255),
+    pedidos int,
+    status char(1),
+    PRIMARY KEY (riderlevel2)
+);
+INSERT INTO riderlevel2 VALUES(null,"71510490092",0,1);
+
+create table visitantes (
+    idvisitantes int NOT NULL AUTO_INCREMENT,
+    cantidad varchar(255),
+    -- fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status char(1),
+    PRIMARY KEY (idvisitantes)
+);
+INSERT INTO visitantes VALUES(null,0,1);
+
 ALTER TABLE repartidor ADD COLUMN idusuario int AFTER cuentaclabe;
 ALTER TABLE repartidor ADD FOREIGN KEY(idusuario) REFERENCES usuario(idusuario);
 

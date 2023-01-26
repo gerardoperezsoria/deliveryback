@@ -960,6 +960,7 @@ app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
                                     if (results.affectedRows > 0) {
                                         statusTienda(results.insertId)
                                         insertHorario(results.insertId, horario)
+                                        sendNotificationWhatsApp(`Hola se registro un nuevo negocio`, `521715104009`)
                                         res.json(results);
                                     } else {
                                         res.json([]);
@@ -1079,6 +1080,16 @@ app.get('/api/miinfotienda/:idtienda', function (req, res) {
         });
 });
 
+app.get('/api/visitantes', function (req, res) {
+    // const { idtienda } = req.params
+    connection.query(`UPDATE visitantes set cantidad=cantidad+1`,
+        [], function (error, resultspedido, fields) {
+            if (error) throw error;
+            // res.json(resultspedido);
+            res.end();
+        });
+});
+
 app.post('/api/producto', upload.array('myFile', 3), async (req, res) => {
     const form = JSON.parse(JSON.stringify(req.body))
     const files = req.files;
@@ -1190,6 +1201,7 @@ app.post('/api/shoper',
                                         if (results.affectedRows > 0) {
                                             res.json(results);
                                             // statusDelivery(results.insertId)
+                                            sendNotificationWhatsApp(`Hola se registro un usuario nuevo!!!`, `521715104009`)
                                         } else {
                                             res.json([]);
                                         }
@@ -1284,6 +1296,7 @@ app.post('/api/repartidor', uploadrepartidor.array('myFile', 12), async (req, re
                                     if (results.affectedRows > 0) {
                                         res.json(results);
                                         statusDelivery(results.insertId)
+                                        sendNotificationWhatsApp(`Hola se registro un nuevo repartidor`, `521715104009`)
                                     } else {
                                         res.json([]);
                                     }
@@ -1403,6 +1416,28 @@ app.get('/api/categorias', function (req, res) {
             res.json([]);
         }
         res.end();
+    });
+});
+
+app.get('/api/panicbutton/:idtienda/:tipoenvio', function (req, res) {
+    const { idtienda, tipoenvio } = req.params
+    connection.query(`select * from usuario as u INNER JOIN tienda as t ON t.idusuario=u.idusuario where t.idtienda=${idtienda}`, [], function (error, results, fields) {
+        if (error) throw error;
+        const { nombre, calle, numero, colonia, cp, ciudad, telefono } = results[0]
+        const mensaje = `Hola te estan solicitando un servicio de entrega desde carrery. 
+        El negocio a donde debes acudir es el siguiente: 
+        Negocio:${nombre}, Calle:${calle}, Calle:${numero}, Colonia:${colonia}, Ciudad:${ciudad}, CP:${cp}.
+        Nota: concidera que el envio es ${tipoenvio}`
+        connection.query(`select * from riderlevel2 where whatsapp like "${telefono.substr(0, 3)}%"`, [], function (error, resultsriderl2, fields) {
+            if (error) throw error;
+            console.log("resultsriderl2",resultsriderl2,"*",`select * from riderlevel2 where whatsapp like "${telefono.substr(0, 3)}%"`)
+            resultsriderl2.map((row) => {
+                sendNotificationWhatsApp(`${mensaje}`, `521${row.whatsapp}`)
+            })
+            sendNotificationWhatsApp(`Hola se presiono un boton de panico cliente ${nombre}!!!`, `521715104009`)
+            res.json({respuesta:"Se envio tu solicitud a los socios repartidores en breve acudiran a tu negocio."});
+            res.end();
+        });
     });
 });
 

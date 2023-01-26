@@ -1430,12 +1430,15 @@ app.get('/api/panicbutton/:idtienda/:tipoenvio', function (req, res) {
         Nota: concidera que el envio es ${tipoenvio}`
         connection.query(`select * from riderlevel2 where whatsapp like "${telefono.substr(0, 3)}%"`, [], function (error, resultsriderl2, fields) {
             if (error) throw error;
-            console.log("resultsriderl2",resultsriderl2,"*",`select * from riderlevel2 where whatsapp like "${telefono.substr(0, 3)}%"`)
-            resultsriderl2.map((row) => {
-                sendNotificationWhatsApp(`${mensaje}`, `521${row.whatsapp}`)
-            })
-            sendNotificationWhatsApp(`Hola se presiono un boton de panico cliente ${nombre}!!!`, `521715104009`)
-            res.json({respuesta:"Se envio tu solicitud a los socios repartidores en breve acudiran a tu negocio."});
+            if (resultsriderl2.length > 0) {
+                resultsriderl2.map((row) => {
+                    sendNotificationWhatsApp(`${mensaje}`, `521${row.whatsapp}`)
+                })
+                sendNotificationWhatsApp(`Hola se presiono un boton de panico cliente ${nombre}!!!`, `521715104009`)
+                res.json({ color: "success", respuesta: "Se envio tu solicitud a los socios repartidores en breve acudiran a tu negocio." });
+            } else {
+                res.json({ color: "danger", respuesta: "Lo sentimos por el momento no hay socios repartidores disponibles." });
+            }
             res.end();
         });
     });

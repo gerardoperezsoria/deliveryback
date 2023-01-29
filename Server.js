@@ -32,7 +32,7 @@ const credentials = {
 };
 
 //Mysql 
-const mysql = require('mysql');
+const mysql = require('mysql2');
 
 const connection = mysql.createConnection({
     host: 'localhost',
@@ -68,8 +68,7 @@ async function sendNotificationWhatsApp(message, phone) {
             referrerPolicy: 'no-referrer',
             body: JSON.stringify(data)
         });
-        const respuesta = await response.json()
-        console.log(respuesta)
+        await response.json()
     } catch (error) {
         console.log(error)
     }
@@ -138,7 +137,7 @@ app.get('/api/getcountry/:ippublica', function (req, res) {
 
 app.post('/api/authenticationshoper', function (req, res) {
     const { password, telefono, status } = req.body
-    connection.query(`SELECT idusuario FROM usuario where password=? and telefono=? and status=?`, [password, telefono, status], function (error, results, fields) {
+    connection.query(`SELECT idusuario FROM usuario where contrasena=? and telefono=? and status=?`, [password, telefono, status], function (error, results, fields) {
         if (error) throw error;
         if (results.length > 0) {
             const { idusuario } = results[0]
@@ -162,7 +161,7 @@ app.post('/api/authenticationshoper', function (req, res) {
 
 app.post('/api/authenticationcustomer', function (req, res) {
     const { password, telefono, status } = req.body
-    connection.query(`SELECT idusuario FROM usuario where password=? and telefono=? and status=?`, [password, telefono, status], function (error, results, fields) {
+    connection.query(`SELECT idusuario FROM usuario where contrasena=? and telefono=? and status=?`, [password, telefono, status], function (error, results, fields) {
         if (error) throw error;
         if (results.length > 0) {
             const { idusuario } = results[0]
@@ -185,15 +184,12 @@ app.post('/api/authenticationcustomer', function (req, res) {
 
 app.post('/api/authenticationdelivery', function (req, res) {
     const { password, telefono, status } = req.body
-    connection.query(`SELECT idusuario FROM usuario where password=? and telefono=? and status=?`, [password, telefono, status], function (error, results, fields) {
+    connection.query(`SELECT idusuario FROM usuario where contrasena=? and telefono=? and status=?`, [password, telefono, status], function (error, results, fields) {
         if (error) throw error;
         if (results.length > 0) {
-            console.log("results I", results[0])
-            // res.json(results);
             const { idusuario } = results[0]
             connection.query(`SELECT idrepartidor FROM repartidor where idusuario=?`,
                 [idusuario], function (error, resultstienda, fields) {
-                    console.log("results II", resultstienda)
                     if (error) throw error;
                     if (resultstienda.length > 0) {
                         res.json(resultstienda);
@@ -229,7 +225,6 @@ app.post('/api/changestatuscustomer', function (req, res) {
 function changeStatusPedido(estatus, tiendaID) {
     connection.query(`UPDATE pedido SET autoservicio=? WHERE idtienda=?`, [estatus, tiendaID], function (error, results, fields) {
         if (error) throw error;
-        console.log("changeStatusPedido", results)
     });
 }
 
@@ -252,7 +247,6 @@ app.post('/api/changestatuscustomerautoservicio', function (req, res) {
 
 app.post('/api/changestatusdelivery', function (req, res) {
     const { idrepartidor, status } = req.body
-    console.log("body", idrepartidor, status)
     connection.query(`UPDATE statusdelivery SET status=? WHERE idrepartidor=?`, [!status, idrepartidor], function (error, results, fields) {
         if (error) throw error;
         res.json(!status);
@@ -316,10 +310,8 @@ app.get('/api/pedidoscustomer/:idtienda', function (req, res) {
 
 app.get('/api/pedidoscustomerentransito/:idtienda', function (req, res) {
     const { idtienda } = req.params
-    // connection.query('SELECT * FROM productos WHERE username = ? AND password = ?', [username, password], function (error, results, fields) {
     connection.query(`SELECT * FROM pedido where idtienda=? and status=2`, [idtienda], function (error, results, fields) {
         if (error) throw error;
-        console.log("pedidoscustomer", results)
         if (results.length > 0) {
             res.json(results);
         } else {
@@ -333,7 +325,6 @@ app.get('/api/pedidoscustomerentransito/:idtienda', function (req, res) {
 app.get('/api/ventas', function (req, res) {
     connection.query(`SELECT * FROM venta where status=1 ORDER BY idventa DESC`, [], function (error, results, fields) {
         if (error) throw error;
-        console.log("results", results)
         if (results.length > 0) {
             res.json(results);
         } else {
@@ -394,22 +385,6 @@ app.get('/api/productos/:limite/:zona', function (req, res) {
 app.get('/api/tiendas/:idtienda/:limite', function (req, res) {
     const { idtienda, limite } = req.params
     const diasemana = getDiaActual()
-
-    console.log("query", `SELECT horario.hora_apertura as hora_apertura_horario, 
-    horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,
-    statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, 
-    producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, 
-    tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
-    FROM tienda
-    INNER JOIN producto
-    ON tienda.idtienda=producto.idtienda
-    INNER JOIN statustienda
-    ON statustienda.idtienda=producto.idtienda
-    INNER JOIN horario
-    ON horario.idtienda=producto.idtienda
-    WHERE producto.idtienda=${idtienda} and producto.status=1 
-    and horario.status_dia=1 and horario.dia=${diasemana} and horario.status_dia=1 
-    limit 50`)
     connection.query(`SELECT horario.hora_apertura as hora_apertura_horario, 
         horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,
         statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, 
@@ -438,7 +413,6 @@ app.get('/api/tiendas/:idtienda/:limite', function (req, res) {
 
 app.get('/api/productoportienda/:idtienda/:limite', function (req, res) {
     const { idtienda, limite = 1 } = req.params
-    // connection.query('SELECT * FROM productos WHERE username = ? AND password = ?', [username, password], function (error, results, fields) {
     connection.query(`SELECT * FROM producto WHERE idtienda=? and status=1 ORDER BY idproducto DESC limit ${limite}`,
         [idtienda, limite], function (error, results, fields) {
             if (error) throw error;
@@ -667,11 +641,9 @@ app.get('/api/detalleproducto/:idventa/:idtienda', function (req, res) {
 
 app.get('/api/pedido/:idrepartidor/:idtienda/:idventa', function (req, res) {
     const { idrepartidor, idtienda, idventa } = req.params
-    console.log("pedido", idrepartidor > 0, idtienda === "null", idventa === "null", idventa, idtienda)
     if (idrepartidor > 0 & idtienda === "null" & idventa === "null") {
         connection.query(`SELECT * from pedido where idrepartidor=${idrepartidor} and status=1`,
             [idtienda, idventa], function (error, results, fields) {
-                console.log("results pedido I", results)
                 if (error) throw error;
                 if (results.length > 0) {
                     res.json({ result: results });
@@ -685,7 +657,6 @@ app.get('/api/pedido/:idrepartidor/:idtienda/:idventa', function (req, res) {
     if (idtienda > 0 & idventa > 0) {
         connection.query(`SELECT * from pedido where idtienda=? and idventa=?`,
             [idtienda, idventa], function (error, results, fields) {
-                console.log("results pedido II", results)
                 if (error) throw error;
                 if (results.length > 0) {
                     res.json({ result: results });
@@ -707,17 +678,6 @@ app.get('/api/statusentrega/:numrastreo', function (req, res) {
                 res.json({ rastreo: resultspedido });
             } else {
                 res.json({ rastreo: [] });
-                // connection.query(`SELECT * from venta where idventa=${numrastreo}`,
-                //     [], function (error, resultsventa, fields) {
-                //         if (error) throw error;
-                //         console.log("resultsventa", resultsventa)
-                //         if (resultsventa.length > 0) {
-                //             res.json({ rastreo: resultsventa });
-                //         } else {
-                //             res.json({ rastreo: 0 });
-                //         }
-                //         res.end();
-                //     });
             }
             res.end();
         });
@@ -750,7 +710,6 @@ function statusTienda(idtienda) {
     connection.query(`INSERT INTO statustienda VALUES(null,'${fechaActual()}',?,1,1)`,
         [idtienda], function (error, results, fields) {
             if (error) throw error;
-            console.log("results", results)
         });
 }
 
@@ -769,7 +728,6 @@ function insertHorario(idtienda, horario) {
         connection.query(`INSERT INTO horario VALUES(null,?,?,?,?,?,1)`,
             [row.dia, row.hora_apertura, row.hora_cierre, descanzo, idtienda], function (error, results, fields) {
                 if (error) throw error;
-                console.log("insert horario correct", index)
             });
     })
 }
@@ -794,7 +752,6 @@ function updateHorario(idtienda, horario) {
         `,
             [row.hora_apertura, row.hora_cierre, descanzo, idtienda, row.dia], function (error, results, fields) {
                 if (error) throw error;
-                console.log("update horario correct", index)
             });
     })
 
@@ -804,7 +761,6 @@ function statusDelivery(idrepartidor) {
     connection.query(`INSERT INTO statusdelivery VALUES(null,?,'${fechaActual()}',1,0)`,
         [idrepartidor], function (error, results, fields) {
             if (error) throw error;
-            console.log("results", results)
         });
 }
 
@@ -841,7 +797,6 @@ function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status
                                     sendNotificationWhatsApp("Tienes un pedido nuevo desde carrery ingresa a tu dashboard de negocio en carrery.com/customer", `521${resultnotification[0].whatsapp}`)
                                 });
 
-                            console.log("telefono", telefono)
                         });
                 });
         });
@@ -920,7 +875,6 @@ app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
     connection.query(`SELECT * FROM usuario where telefono=? and status=2`,
         [telefono], function (error, resultsusuario, fields) {
             if (error) throw error;
-            console.log("resultsusuario tienda", resultsusuario)
             if (resultsusuario.length > 0) {
                 res.json({ respuesta: "Telefono ya registrado, si crees que es un error contacta a soporte" });
             } else {
@@ -1037,8 +991,8 @@ app.post('/api/updatetienda', uploadtienda.array('myFile', 3), async (req, res) 
                 cp = ?,
                 ciudad = ?,
                 telefono = ?,
-                password = ?,
-                repassword = ? 
+                contrasena = ?,
+                recontrasena = ? 
                 WHERE idusuario=?
                 `,
                     [
@@ -1139,17 +1093,6 @@ app.post('/api/shoper',
     uploadrepartidor.array('myFile', 12),
     async (req, res) => {
         const form = JSON.parse(JSON.stringify(req.body))
-        console.log("shoper", req.body)
-        // const files = req.files;
-        // if (!files) {
-        //     const error = new Error('Please choose files')
-        //     error.httpStatusCode = 400
-        //     return next(error)
-        // }
-        // var photosCad = "";
-        // photosrepartidor.map((row) => {
-        //     photosCad = row
-        // });
         const {
             whatsapp,
             nombre,
@@ -1353,7 +1296,6 @@ webpush.setVapidDetails('mailto:gerardoperezsoria@gmail.com', publicVapidKey, pr
 
 app.post('/api/subscribe', (req, res) => {
     const { subscription, idtienda } = req.body;
-    console.log("subscription", subscription, idtienda)
     const payload = JSON.stringify({ title: 'Bienvenido a carrery' });
     const payload2 = JSON.stringify({ title: 'Bienvenido a las notificaciones de carrery.com' });
     res.status(201).json({});
@@ -1384,7 +1326,6 @@ app.post('/api/precioentregaportienda', (req, res) => {
             connection.query(`UPDATE precioenvio SET precioenvio=? where idtienda=? and status=1`,
                 [precioentrega, idtienda], function (error, resultsupdate, fields) {
                     if (error) throw error;
-                    console.log("update precio envio", resultsupdate)
                     res.json({ respuesta: "Precio actualizado correctamente." });
                     res.end();
                 });
@@ -1470,7 +1411,6 @@ app.post('/api/sendwebpushnotification', (req, res) => {
     connection.query(`SELECT * FROM suscriptor where idtienda=? and status=1`,
         [idtienda], function (error, resultssuscriptor, fields) {
             if (error) throw error;
-            console.log("subscription back", resultssuscriptor[0], resultssuscriptor[0].endpoint)
             const subscription = {
                 endpoint: resultssuscriptor[0].endpoint,
                 expirationTime: 500,
@@ -1479,7 +1419,6 @@ app.post('/api/sendwebpushnotification', (req, res) => {
                     auth: resultssuscriptor[0].auth
                 }
             }
-            console.log("send web push")
             webpush.sendNotification(subscription, payload).catch(error => {
                 console.error(error.stack);
             });

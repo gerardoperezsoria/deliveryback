@@ -9,8 +9,8 @@ CREATE TABLE usuario (
     telefono varchar(255),
     rfc varchar(255),
     entre_calles varchar(255),
-    password varchar(255),
-    repassword varchar(255),
+    contrasena varchar(255),
+    recontrasena varchar(255),
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status char(1),
     PRIMARY KEY (idusuario)
@@ -27,6 +27,24 @@ insert into usuario values(
     1
 );
 
+CREATE TABLE tienda (
+    idtienda int NOT NULL AUTO_INCREMENT,
+    hora_apertura varchar(255),
+    hora_cierre varchar(255),
+    pagina_web varchar(255),
+    red_social varchar(255),
+    whatsapp varchar(255),
+    nombre_tienda varchar(255),
+    cuentaclabe char(18),
+    beneficiario varchar(255),
+    banco varchar(255),
+    logotipo varchar(255),
+    fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    idusuario int,
+    status char(1),
+    PRIMARY KEY (idtienda),
+    FOREIGN KEY (idusuario) REFERENCES usuario(idusuario)
+);
 
 CREATE TABLE statustienda (
     idstatustienda int NOT NULL AUTO_INCREMENT,
@@ -36,6 +54,23 @@ CREATE TABLE statustienda (
     status char(1),
     PRIMARY KEY (idstatustienda),
     FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
+);
+
+CREATE TABLE repartidor (
+    idrepartidor int NOT NULL AUTO_INCREMENT,
+    ine varchar(255),
+    curp varchar(255),
+    documentos varchar(255),
+    fecha_nacimiento varchar(255),
+    referencia varchar(255),
+    apellido_paterno varchar(255),
+    apellido_materno varchar(255),
+    vehiculo varchar(255),
+    cuentaclabe varchar(255),
+    idusuario int,
+    fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+    status char(1),
+    PRIMARY KEY (idrepartidor)
 );
 
 CREATE TABLE statusdelivery (
@@ -60,25 +95,6 @@ CREATE TABLE horario (
     status char(1),
     PRIMARY KEY (idhorario),
     FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
-);
-
-CREATE TABLE tienda (
-    idtienda int NOT NULL AUTO_INCREMENT,
-    hora_apertura varchar(255),
-    hora_cierre varchar(255),
-    pagina_web varchar(255),
-    red_social varchar(255),
-    whatsapp varchar(255),
-    nombre_tienda varchar(255),
-    cuentaclabe char(18),
-    beneficiario varchar(255),
-    banco varchar(255),
-    logotipo varchar(255),
-    fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    idusuario int,
-    status char(1),
-    PRIMARY KEY (idtienda),
-    FOREIGN KEY (idusuario) REFERENCES usuario(idusuario)
 );
 
 ALTER TABLE tienda ADD COLUMN cuentaclabe char(18) AFTER nombre_tienda;
@@ -213,27 +229,6 @@ insert into pedido values(
     1
 );
 
-CREATE TABLE repartidor (
-    idrepartidor int NOT NULL AUTO_INCREMENT,
-    -- nombre varchar(255),
-    -- telefono varchar(255),
-    ine varchar(255),
-    curp varchar(255),
-    -- rfc varchar(255),
-    -- direccion varchar(255),
-    documentos varchar(255),
-    fecha_nacimiento varchar(255),
-    referencia varchar(255),
-    apellido_paterno varchar(255),
-    apellido_materno varchar(255),
-    vehiculo varchar(255),
-    cuentaclabe varchar(255),
-    idusuario int,
-    fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    status char(1),
-    PRIMARY KEY (idrepartidor)
-);
-
 create table suscriptor(
     idsuscriptor int NOT NULL AUTO_INCREMENT,
     idtienda int,
@@ -264,8 +259,8 @@ create table shoper (
     nombre varchar(255),
     telefono varchar(255),
     whatsapp varchar(255),
-    password varchar(255),
-    repassword varchar(255),
+    contrasena varchar(255),
+    recontrasena varchar(255),
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     idusuario int,
     status char(1),

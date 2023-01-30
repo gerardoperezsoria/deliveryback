@@ -161,7 +161,7 @@ app.post('/api/authenticationshoper', function (req, res) {
 
 app.post('/api/authenticationcustomer', function (req, res) {
     const { password, telefono, status } = req.body
-    connection.query(`SELECT idusuario FROM usuario where contrasena=? and telefono=? and status=?`, [password, telefono, status], function (error, results, fields) {
+    connection.query(`SELECT idusuario FROM usuario where contrasena="${password}" and telefono="${telefono}" and status="${status}"`, [], function (error, results, fields) {
         if (error) throw error;
         if (results.length > 0) {
             const { idusuario } = results[0]
@@ -171,11 +171,13 @@ app.post('/api/authenticationcustomer', function (req, res) {
                     if (resultstienda.length > 0) {
                         res.json(resultstienda);
                     } else {
+                        console.log("I")
                         res.json([]);
                     }
                     res.end();
                 });
         } else {
+            console.log("II")
             res.json([]);
         }
         // res.end();

@@ -15,6 +15,13 @@ CREATE TABLE usuario (
     status char(1),
     PRIMARY KEY (idusuario)
 );
+
+ALTER TABLE usuario ADD COLUMN contrasena varchar(255) AFTER entre_calles;
+ALTER TABLE usuario DROP COLUMN password;
+
+ALTER TABLE usuario ADD COLUMN recontrasena varchar(255) AFTER contrasena;
+ALTER TABLE usuario DROP COLUMN repassword;
+
 insert into usuario values(
     null,
     "charles cart",

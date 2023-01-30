@@ -161,7 +161,7 @@ app.post('/api/authenticationshoper', function (req, res) {
 
 app.post('/api/authenticationcustomer', function (req, res) {
     const { password, telefono, status } = req.body
-    connection.query(`SELECT idusuario FROM usuario where contrasena="${password}" and telefono="${telefono}" and status="${status}"`, [], function (error, results, fields) {
+    connection.query(`SELECT idusuario FROM usuario where contrasena=? and telefono=? and status=?`, [password, telefono, status], function (error, results, fields) {
         if (error) throw error;
         if (results.length > 0) {
             const { idusuario } = results[0]
@@ -171,13 +171,11 @@ app.post('/api/authenticationcustomer', function (req, res) {
                     if (resultstienda.length > 0) {
                         res.json(resultstienda);
                     } else {
-                        console.log("I")
                         res.json([]);
                     }
                     res.end();
                 });
         } else {
-            console.log("II")
             res.json([]);
         }
         // res.end();
@@ -715,6 +713,13 @@ function statusTienda(idtienda) {
         });
 }
 
+function insertPrecioEnvio(idtienda) {
+    connection.query(`INSERT INTO precioenvio VALUES(null,?, 0, '${fechaActual()}', 1)`,
+        [idtienda], function (error, resultsinsert, fields) {
+            if (error) throw error;
+        });
+}
+
 function insertHorario(idtienda, horario) {
     const objhorario = JSON.parse(horario)
     objhorario.map((row, index) => {
@@ -916,6 +921,7 @@ app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
                                     if (results.affectedRows > 0) {
                                         statusTienda(results.insertId)
                                         insertHorario(results.insertId, horario)
+                                        insertPrecioEnvio(results.insertId)
                                         sendNotificationWhatsApp(`Hola se registro un nuevo negocio`, `521715104009`)
                                         res.json(results);
                                     } else {
@@ -1058,37 +1064,43 @@ app.post('/api/producto', upload.array('myFile', 3), async (req, res) => {
     namephotos.map((row) => {
         photosCad = row
     });
-    const {
-        nombre,
-        fotos = `${namephotos}`,
-        precio,
-        descripcion,
-        cantidad,
-        idtienda,
-        t_entrega,
-        categoria
-    } = form;
-    connection.query(`INSERT INTO producto VALUES(null,?,?,?,?,?,?,?,?,'${fechaActual()}',0,1)`,
-        [
+    try {
+        const {
             nombre,
-            fotos,
+            fotos = `${namephotos}`,
             precio,
             descripcion,
             cantidad,
             idtienda,
             t_entrega,
             categoria
-        ],
-        function (error, results, fields) {
-            if (error) throw error;
-            if (results.affectedRows > 0) {
-                res.json(results);
-            } else {
-                res.json([]);
-            }
-            namephotos = []
-            res.end();
-        });
+        } = form;
+        connection.query(`INSERT INTO producto VALUES(null,?,?,?,?,?,?,?,?,'${fechaActual()}',0,1)`,
+            [
+                nombre,
+                fotos,
+                precio,
+                descripcion,
+                cantidad,
+                idtienda,
+                t_entrega,
+                categoria
+            ],
+            function (error, results, fields) {
+                if (error) throw error;
+                if (results.affectedRows > 0) {
+                    res.json(results);
+                } else {
+                    res.json([]);
+                }
+                namephotos = []
+                res.end();
+            });
+    } catch (error) {
+        namephotos = []
+        res.json([]);
+        res.end();
+    }
 })
 
 app.post('/api/shoper',

@@ -80,6 +80,8 @@ CREATE TABLE repartidor (
     PRIMARY KEY (idrepartidor)
 );
 
+ALTER TABLE repartidor ADD COLUMN nombre varchar(255) AFTER documentos;
+
 CREATE TABLE statusdelivery (
     idstatusdelivery int NOT NULL AUTO_INCREMENT,
     idrepartidor int,
@@ -250,6 +252,9 @@ create table suscriptor(
     FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
 );
 
+SHOW CREATE table suscriptor;
+ALTER TABLE suscriptor DROP FOREIGN KEY suscriptor_ibfk_1;
+
 create table precioenvio(
     idprecioenvio int NOT NULL AUTO_INCREMENT,
     idtienda int,
@@ -292,6 +297,46 @@ create table visitantes (
     status char(1),
     PRIMARY KEY (idvisitantes)
 );
+
+create table preciosdelivery (
+    idpreciodelivery int NOT NULL AUTO_INCREMENT,
+    preciorider double(13,2),
+    precioapp double(13,2),
+    preciototal double(13,2),
+    status char(1),
+    PRIMARY KEY (idpreciodelivery)
+);
+
+
+INSERT INTO preciosdelivery VALUES(null,25,5,30,1);
+
+create table registronegocios (
+    idregistronegocios int NOT NULL AUTO_INCREMENT,
+    nombre varchar(255),
+    whatsapp char(10),
+    logotipo varchar(255),
+    cp char(5),
+    status char(1),
+    PRIMARY KEY (idregistronegocios)
+);
+
+ALTER TABLE registronegocios ADD COLUMN cp char(5) AFTER logotipo;
+
+create table pedidosxrider (
+    idpedidosrider int NOT NULL AUTO_INCREMENT,
+    fecha_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    idpedido int,
+    idventa int,
+    ganancia double(16,3),
+    status char(1),
+    PRIMARY KEY (idpedidosrider)
+    INDEX (idpedidosrider),
+    FOREIGN KEY (idpedido) REFERENCES pedido(idpedido)
+    FOREIGN KEY (idventa) REFERENCES venta(idventa)
+    FOREIGN KEY (idrepartidor) REFERENCES repartidor(idrepartidor)
+);
+
+
 INSERT INTO visitantes VALUES(null,0,1);
 
 ALTER TABLE repartidor ADD COLUMN idusuario int AFTER cuentaclabe;
@@ -441,3 +486,6 @@ SELECT
         WHERE producto.idtienda=62 and producto.status=1 
         and horario.status_dia=1 and horario.dia='DOMINGO' and horario.status_dia=1 
         limit 50;
+
+--Validar suscriptor
+        -- INSERT INTO suscriptor VALUES(null,10,'https://fcm.googleapis.com/fcm/send/cHmCp4FYrAY:APA91bGaiQveISAHQGu-wul-cl3qvux7KFq4oiIkWtLn3O2gfpn2-kVaTslNXs1ae0Dcj5fg-CzqIvAiY-Nly1wEBiDUvLRfPXgwm7Bx8v26WG4ak8zwpNW54i9SX3WF8QWLSJ_utMJx',NULL,'BFnNF24EFOGoCVldFVyohCPROuj9FaqkIGeVqn0nV__NF8Se1f8bMFhmg53JImYALud-XPu0wUPumuDiIl3vZkQ','EmH_wF_lvlLwRvwHzJ3ZKA','2023-2-13 22:40:21',1);

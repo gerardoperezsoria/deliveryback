@@ -49,13 +49,38 @@ function fechaActual() {
     return fechaYHora
 }
 
+async function panicbutton(datos) {
+    try {
+        /**pruebas */
+        // const url = "https://lodashy.com:9000/api/venta"
+        /**produccion */
+        const url = "http://localhost:9000/api/venta"
+        const response = await fetch(url, {
+            method: 'POST',
+            mode: 'cors',
+            cache: 'no-cache',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            redirect: 'follow',
+            referrerPolicy: 'no-referrer',
+            body: JSON.stringify(datos)
+        });
+        return true
+    } catch (error) {
+        return false;
+    }
+}
+
 async function sendNotificationWhatsApp(message, phone) {
     try {
         const data = {
             "message": `${message}`,
             "phone": `${phone}`
         }
-        const url = "http://34.135.251.190:3001/lead"
+        const url = "http://137.184.181.103:3001/lead"
+        // const url = "http://localhost:3001/lead"
         const response = await fetch(url, {
             method: 'POST',
             mode: 'cors',
@@ -341,6 +366,52 @@ app.get('/api/productos/:limite/:zona', function (req, res) {
     connection.query(`SELECT 
         precioenvio.precioenvio,
         statustienda.autoservicio,
+        producto.fechahora,
+        producto.status, 
+        horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,
+        horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, 
+        producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, 
+        producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
+        FROM tienda
+        INNER JOIN producto
+        ON tienda.idtienda=producto.idtienda
+        INNER JOIN statustienda
+        ON statustienda.idtienda=producto.idtienda
+        INNER JOIN horario
+        ON horario.idtienda=producto.idtienda
+        INNER JOIN usuario
+        ON usuario.idusuario=tienda.idusuario
+        LEFT JOIN precioenvio
+        ON tienda.idtienda=precioenvio.idtienda
+
+        WHERE producto.status=1 
+        and usuario.cp like '${zona}%'
+        and horario.status_dia=1 
+        and horario.dia=(select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' 
+                                                                 WHEN 2 THEN 'MARTES' 
+                                                                 WHEN 3 THEN 'MIERCOLES' 
+                                                                 WHEN 4 THEN 'JUEVES' 
+                                                                 WHEN 5 THEN 'VIERNES' 
+                                                                 WHEN 6 THEN 'SABADO' 
+                                                                 WHEN 0 THEN 'DOMINGO' 
+                                                                 END) 
+        and horario.status_dia=1 order by producto.fechahora DESC limit ${limite}`, [], function (error, results, fields) {
+        if (error) throw error;
+        if (results.length > 0) {
+            res.json(results);
+        } else {
+            res.json([]);
+        }
+        res.end();
+    });
+});
+
+app.get('/api/productosxcategoria/:limite/:zona/:categoria', function (req, res) {
+    const { limite, zona, categoria } = req.params
+    // const diasemana = getDiaActual()
+    connection.query(`SELECT 
+        precioenvio.precioenvio,
+        statustienda.autoservicio,
 
         producto.status, 
         horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,
@@ -362,6 +433,7 @@ app.get('/api/productos/:limite/:zona', function (req, res) {
         WHERE producto.status=1 
         and usuario.cp like '${zona}%'
         and horario.status_dia=1 
+        and producto.categoria='${categoria}'
         and horario.dia=(select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' 
                                                                  WHEN 2 THEN 'MARTES' 
                                                                  WHEN 3 THEN 'MIERCOLES' 
@@ -439,6 +511,34 @@ app.get('/api/allproductshop/:idtienda', function (req, res) {
         });
 });
 
+app.get('/api/costoenviorider', function (req, res) {
+    const { idtienda, limite = 1 } = req.params
+    connection.query(`SELECT preciorider FROM preciosdelivery`,
+        [idtienda, limite], function (error, results, fields) {
+            if (error) throw error;
+            if (results.length > 0) {
+                res.json(results);
+            } else {
+                res.json([]);
+            }
+            res.end();
+        });
+});
+
+app.get('/api/costoenviodelivery', function (req, res) {
+    const { idtienda, limite = 1 } = req.params
+    connection.query(`SELECT preciototal FROM preciosdelivery`,
+        [idtienda, limite], function (error, results, fields) {
+            if (error) throw error;
+            if (results.length > 0) {
+                res.json(results);
+            } else {
+                res.json([]);
+            }
+            res.end();
+        });
+});
+
 // app.get('/api/productoportienda/:idtienda/:cantidad/:status', function (req, res) {
 //     const { idtienda, cantidad, status } = req.params
 //     connection.query(`SELECT * FROM producto WHERE status=? and idtienda=? ORDER BY idproducto DESC limit ${cantidad}`, [status, idtienda], function (error, results, fields) {
@@ -466,12 +566,44 @@ app.get('/api/todoslospedidosportienda/:idtienda', function (req, res) {
         });
 });
 
+app.get('/api/repartidoresonline', function (req, res) {
+    const { idtienda } = req.params
+    connection.query(`select count(*) as repartidores from repartidor as r inner join statusdelivery as sd on r.idrepartidor=sd.idrepartidor where r.status=1 and sd.statusaprovacion =1 and sd.status=1`,
+        [idtienda], function (error, results, fields) {
+            if (error) throw error;
+            if (results.length > 0) {
+                res.json(results);
+            } else {
+                res.json([]);
+            }
+            res.end();
+        });
+});
+
 app.post('/api/updateproductforshop', function (req, res) {
     const { idtienda, status } = req.body
     connection.query(`UPDATE producto SET status=? WHERE idtienda=?`, [status, idtienda], function (error, results, fields) {
         if (error) throw error;
         if (results.affectedRows > 0) {
             res.json({ results });
+        } else {
+            res.json([]);
+        }
+        res.end();
+    });
+});
+
+app.post('/api/aprobarrider', function (req, res) {
+    const { statusaprovacion, idstatusdelivery, idusuario } = req.body
+    connection.query(`UPDATE statusdelivery SET statusaprovacion=? WHERE idstatusdelivery=?`, [statusaprovacion, idstatusdelivery], function (error, results, fields) {
+        if (error) throw error;
+        if (results.affectedRows > 0) {
+            res.json({ results });
+            connection.query(`Select telefono from usuario WHERE idusuario=${idusuario}`, [], function (error, resultsusuario, fields) {
+                if (error) throw error;
+                sendNotificationWhatsApp("Hola te escribo de carrery para informarte que tu aprobación como socio repartidor en la plataforma ha sido exitosa, ahora nos toca hacer lo posible, por tener entregas que puedas aprovechar y generar un ingreso extra. Ingresa en https://carrery.com/delivery ingresa y revisa que tu estatus este activo o inactivo dependiendo de si vas a tomar acción y esperar pedidos o no. Si no vas a estar disponible pon en inactivo tu estatus, para evitar ser baneado o suspender tu cuenta en carrery. Escribenos si tienes dudas de la operación.",
+                    `521${resultsusuario[0].telefono}`)
+            });
         } else {
             res.json([]);
         }
@@ -528,16 +660,26 @@ app.post('/api/completarpedidocustomer', function (req, res) {
                     [idventa], function (error, resultsupdate, fields) {
                         if (error) throw error;
                         if (resultsupdate.affectedRows > 0) {
-                            res.json({ result: "OK" });
+                            connection.query(`
+                            select idrepartidor from pedido where status=2 and status_repartidor = 2 and status_tienda = 2 and idventa=?
+                            `,
+                                [idventa], function (error, resultidrepartidor, fields) {
+                                    if (error) throw error;
+                                    if (resultidrepartidor.length > 0) {
+                                        updatStatusDelivery(resultidrepartidor[0].idrepartidor, 1)
+                                        res.json({ result: "OK" });
+                                        res.end();
+                                    }
+                                });
                         } else {
                             res.json([]);
+                            res.end();
                         }
-                        res.end();
+                        // res.end();
                     });
             } else {
                 res.json({ result: "OK" });
             }
-            // res.end();
         });
 });
 /**Se migra a function */
@@ -584,7 +726,7 @@ app.post('/api/pedidoupdate', function (req, res) {
                                 res.json({ result: "OK" });
                                 updatStatusDelivery(idrepartidor, 1)
                             } else {
-                                res.json([]);
+                                res.json({ result: "OK" });
                             }
                             res.end();
                         });
@@ -636,6 +778,52 @@ app.get('/api/detalleproducto/:idventa/:idtienda', function (req, res) {
                 res.json([]);
             }
             res.end();
+        });
+});
+
+app.get('/api/pedidodashboard/:limite', function (req, res) {
+    const { limite } = req.params
+
+    connection.query(`SELECT * from pedido ORDER BY idpedido DESC limit ${limite}`,
+        [], function (error, results, fields) {
+            if (error) throw error;
+            if (results.length > 0) {
+                res.json({ result: results });
+                res.end();
+            } else {
+                res.json({ result: [] });
+                res.end();
+            }
+        });
+});
+
+app.get('/api/riderdashboard/:limite', function (req, res) {
+    const { limite } = req.params
+
+    connection.query(`select 
+    r.idrepartidor, 
+    r.documentos,
+    r.nombre,
+    sd.statusaprovacion ,
+    r.status,
+    r.fecha_nacimiento,
+    r.referencia,
+    r.apellido_paterno,
+    r.apellido_materno,
+    r.vehiculo,
+    sd.idstatusdelivery,
+    r.idusuario
+    from repartidor as r inner join statusdelivery as sd on r.idrepartidor=sd.idrepartidor and r.status=1 limit ${limite}
+    `,
+        [], function (error, results, fields) {
+            if (error) throw error;
+            if (results.length > 0) {
+                res.json({ result: results });
+                res.end();
+            } else {
+                res.json({ result: [] });
+                res.end();
+            }
         });
 });
 
@@ -698,7 +886,7 @@ app.post('/api/venta', function (req, res) {
             if (error) throw error;
             if (results.affectedRows > 0) {
                 res.json({ insertId: results.insertId });
-                insertPedido(results.insertId, 0, idtienda, "", "", "", notas, telefono)
+                insertPedido(results.insertId, 0, idtienda, "", "", "", notas, telefono, cp)
             } else {
                 res.json([]);
             }
@@ -771,7 +959,22 @@ function statusDelivery(idrepartidor) {
         });
 }
 
-function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status_repartidor = "", status_tienda = "", notas, telefono) {
+function notificationriders(cp) {
+    const mensaje = "Hay un pedido nuevo, ingresa a tu panel de entregas en carrery.com/delivery"
+    connection.query(`
+    select u.cp, u.telefono from repartidor as r inner join statusdelivery as sd on r.idrepartidor=sd.idrepartidor inner join usuario as u ON u.idusuario=r.idusuario where r.status=1 and sd.statusaprovacion =1 and sd.status=1
+    `,
+        [], function (error, results, fields) {
+            if (error) throw error;
+            results.map((row) => {
+                if ((row.cp).substr(0, 3) === cp) {
+                    sendNotificationWhatsApp(`${mensaje}`, `521${row.telefono}`)
+                }
+            })
+        });
+}
+
+function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status_repartidor = "", status_tienda = "", notas, telefono, cp) {
     connection.query(`SELECT * FROM statustienda where idtienda=?`,
         [idtienda], function (error, resultsstatustienda, fields) {
             if (error) throw error;
@@ -803,7 +1006,7 @@ function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status
                                     if (error) throw error;
                                     sendNotificationWhatsApp("Tienes un pedido nuevo desde carrery ingresa a tu dashboard de negocio en carrery.com/customer", `521${resultnotification[0].whatsapp}`)
                                 });
-
+                            notificationriders(cp.substr(0, 3))
                         });
                 });
         });
@@ -812,6 +1015,7 @@ function insertPedido(idventa, idrepartidor, idtienda, hora_entrega = "", status
 var namephotos = [];
 var logotienda = [];
 var photosrepartidor = [];
+var photosnegocio = [];
 const storage = multer.diskStorage({
     destination: path.join(__dirname, 'public/uploads'),
     filename: (req, file, cb) => {
@@ -839,9 +1043,19 @@ const storagerepartidor = multer.diskStorage({
     }
 });
 
+const storagenegocio = multer.diskStorage({
+    destination: path.join(__dirname, 'public/uploads'),
+    filename: (req, file, cb) => {
+        var nombre = uuid() + path.extname(file.originalname).toLocaleLowerCase()
+        photosnegocio.push(nombre);
+        cb(null, nombre);
+    }
+});
+
 var upload = multer({ storage: storage })
 var uploadtienda = multer({ storage: storagetienda })
 var uploadrepartidor = multer({ storage: storagerepartidor })
+var uploadnegocio = multer({ storage: storagenegocio })
 
 app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
     const form = JSON.parse(JSON.stringify(req.body))
@@ -936,6 +1150,41 @@ app.post('/api/tienda', uploadtienda.array('myFile', 3), async (req, res) => {
                         // res.end();
                     });
             }
+        });
+});
+
+app.post('/api/registronegocio', uploadnegocio.array('myFile', 3), async (req, res) => {
+    const form = JSON.parse(JSON.stringify(req.body))
+    const files = req.files;
+    if (!files) {
+        const error = new Error('Please choose files')
+        error.httpStatusCode = 400
+        return next(error)
+    }
+    var logoNeg = "";
+    photosnegocio.map((row) => {
+        logoNeg = row
+    });
+    const {
+        whatsapp,
+        nombre_tienda,
+        cp
+    } = form;
+    const logotipo = `${photosnegocio}`
+
+    connection.query(`INSERT INTO registronegocios VALUES(null,?,?,?,?,1)`,
+        [
+            nombre_tienda,
+            whatsapp,
+            logotipo,
+            cp
+        ],
+        function (error, results, fields) {
+            if (error) throw error;
+            res.json(results);
+            photosnegocio = []
+            res.end();
+            sendNotificationWhatsApp(`Se registro el negocio ${nombre_tienda}`, `5217151049009`)
         });
 });
 
@@ -1035,6 +1284,16 @@ app.get('/api/miinfotienda/:idtienda', function (req, res) {
                       INNER JOIN tienda as t on u.idusuario=t.idusuario 
                       INNER JOIN horario as h on h.idtienda=t.idtienda 
                       WHERE t.idtienda=${idtienda}`,
+        [], function (error, resultspedido, fields) {
+            if (error) throw error;
+            res.json(resultspedido);
+            res.end();
+        });
+});
+
+app.get('/api/registronegocios/:limite/:cp', function (req, res) {
+    const { limite, cp } = req.params
+    connection.query(`SELECT * FROM registronegocios where cp like '${cp.substr(0, 3)}%' limit ${limite}`,
         [], function (error, resultspedido, fields) {
             if (error) throw error;
             res.json(resultspedido);
@@ -1156,14 +1415,22 @@ app.post('/api/shoper',
                                     function (error, results, fields) {
                                         if (error) throw error;
                                         if (results.affectedRows > 0) {
-                                            res.json(results);
-                                            // statusDelivery(results.insertId)
+
+                                            connection.query(`SELECT s.idshoper,u.nombre, u.calle, u.numero, u.colonia, u.cp, u.ciudad, u.telefono 
+                                            FROM shoper as s INNER JOIN usuario as u ON s.idusuario=u.idusuario where s.idusuario=?`,
+                                                [resultsuser.insertId], function (error, resultsshoper, fields) {
+                                                    if (error) throw error;
+                                                    if (resultsshoper.length > 0) {
+                                                        res.json(resultsshoper);
+                                                    } else {
+                                                        res.json([]);
+                                                    }
+                                                    res.end();
+                                                });
                                             sendNotificationWhatsApp(`Hola se registro un usuario nuevo!!!`, `521715104009`)
                                         } else {
                                             res.json([]);
                                         }
-                                        // photosrepartidor = []
-                                        res.end();
                                     });
 
                             } else {
@@ -1235,11 +1502,12 @@ app.post('/api/repartidor', uploadrepartidor.array('myFile', 12), async (req, re
                     ], function (error, resultsuser, fields) {
                         if (error) throw error;
                         if (resultsuser.affectedRows > 0) {
-                            connection.query(`INSERT INTO repartidor VALUES(null,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',1)`,
+                            connection.query(`INSERT INTO repartidor VALUES(null,?,?,?,?,?,?,?,?,?,?,?,'${fechaActual()}',1)`,
                                 [
                                     ine,
                                     curp,
                                     documentos,
+                                    nombre,
                                     fecha_nacimiento,
                                     referencia,
                                     apellido_paterno,
@@ -1317,7 +1585,9 @@ app.post('/api/subscribe', (req, res) => {
     connection.query(`SELECT * FROM suscriptor where idtienda=? and auth=? and status=1`,
         [idtienda, subscription.keys.auth], function (error, resultssuscriptor, fields) {
             if (error) throw error;
-            if (resultssuscriptor.length === 0) {
+            if (resultssuscriptor.length > 0) {
+                sendWebPushNotificaction(subscription, payload2)
+            } else {
                 connection.query(`INSERT INTO suscriptor VALUES(null,?,?,?,?,?,?,1)`,
                     [idtienda, subscription.endpoint, subscription.expirationTime, subscription.keys.p256dh, subscription.keys.auth, fecha_registro = fechaActual()], function (error, results, fields) {
                         if (error) throw error;
@@ -1325,8 +1595,6 @@ app.post('/api/subscribe', (req, res) => {
                             sendWebPushNotificaction(subscription, payload)
                         }
                     });
-            } else {
-                sendWebPushNotificaction(subscription, payload2)
             }
         });
 });
@@ -1374,7 +1642,7 @@ app.get('/api/categorias', function (req, res) {
     });
 });
 
-app.get('/api/panicbutton/:idtienda/:tipoenvio', function (req, res) {
+app.get('/api/panicbutton/:idtienda/:tipoenvio', async function (req, res) {
     const { idtienda, tipoenvio } = req.params
     connection.query(`select * from usuario as u INNER JOIN tienda as t ON t.idusuario=u.idusuario where t.idtienda=${idtienda}`, [], function (error, results, fields) {
         if (error) throw error;
@@ -1383,19 +1651,59 @@ app.get('/api/panicbutton/:idtienda/:tipoenvio', function (req, res) {
         El negocio a donde debes acudir es el siguiente: 
         Negocio:${nombre}, Calle:${calle}, Calle:${numero}, Colonia:${colonia}, Ciudad:${ciudad}, CP:${cp}.
         Nota: concidera que el envio es ${tipoenvio}`
-        connection.query(`select * from riderlevel2 where whatsapp like "${telefono.substr(0, 3)}%"`, [], function (error, resultsriderl2, fields) {
+
+        connection.query(`
+        select p.idproducto from producto as p inner join tienda as t on p.idtienda=t.idtienda inner join usuario as u on u.idusuario=t.idusuario where p.nombre="Delivery" and p.categoria="repartidor" and u.cp like "${cp.substr(0, 3)}%" and t.nombre_tienda="Carrery Negocios" limit 1
+        `, [], function (error, resultsproducto, fields) {
             if (error) throw error;
-            if (resultsriderl2.length > 0) {
-                resultsriderl2.map((row) => {
-                    sendNotificationWhatsApp(`${mensaje}`, `521${row.whatsapp}`)
-                })
-                sendNotificationWhatsApp(`Hola se presiono un boton de panico cliente ${nombre}!!!`, `521715104009`)
-                res.json({ color: "success", respuesta: "Se envio tu solicitud a los socios repartidores en breve acudiran a tu negocio." });
-            } else {
-                res.json({ color: "danger", respuesta: "Lo sentimos por el momento no hay socios repartidores disponibles." });
+            const data = {
+                idproducto: resultsproducto[0].idproducto,
+                cantidad: 1,
+                idtienda: idtienda,
+                descripcion: `${mensaje}`,
+                direccion: `${calle} ${numero}`,
+                colonia: `${colonia}`,
+                estado: `michoacan`,
+                ciudad: `${ciudad}`,
+                pais: `Mexico`,
+                cp: `${cp}`,
+                nombre: `${nombre}`,
+                notas: `Acudir a negocio por un pedido, para entregar`,
+                telefono: `${telefono}`
             }
-            res.end();
-        });
+
+            panicbutton(data)
+                .then((respuesta) => {
+                    if (respuesta === true) {
+                        sendNotificationWhatsApp(`Hola se presiono un boton de panico cliente ${nombre}!!!`, `521715104009`)
+                        res.json({ color: "success", respuesta: "Se envio tu solicitud a los socios repartidores en breve acudiran a tu negocio." });
+                    } else {
+                        res.json({ color: "danger", respuesta: "Lo sentimos por el momento no hay socios repartidores disponibles." });
+                    }
+                    res.end();
+                })
+                // .catch(() => {
+                //     res.json({ color: "danger", respuesta: "Ocurrio un error intente mas tarde." });
+                //     res.end();
+                // })
+        })
+
+
+
+
+        // connection.query(`select * from riderlevel2 where whatsapp like "${telefono.substr(0, 3)}%"`, [], function (error, resultsriderl2, fields) {
+        //     if (error) throw error;
+        //     if (resultsriderl2.length > 0) {
+        //         resultsriderl2.map((row) => {
+        //             sendNotificationWhatsApp(`${mensaje}`, `521${row.whatsapp}`)
+        //         })
+        //         sendNotificationWhatsApp(`Hola se presiono un boton de panico cliente ${nombre}!!!`, `521715104009`)
+        //         res.json({ color: "success", respuesta: "Se envio tu solicitud a los socios repartidores en breve acudiran a tu negocio." });
+        //     } else {
+        //         res.json({ color: "danger", respuesta: "Lo sentimos por el momento no hay socios repartidores disponibles." });
+        //     }
+        //     res.end();
+        // });
     });
 });
 

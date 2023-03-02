@@ -21,15 +21,15 @@ app.use(bodyParser.urlencoded({
     extended: true
 }));
 // Certificate
-const privateKey = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8');
-const certificate = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8');
-const ca = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8');
+// const privateKey = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/privkey.pem', 'utf8');
+// const certificate = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/cert.pem', 'utf8');
+// const ca = fs.readFileSync('/etc/letsencrypt/live/lodashy.com/chain.pem', 'utf8');
 
-const credentials = {
-    key: privateKey,
-    cert: certificate,
-    ca: ca
-};
+// const credentials = {
+//     key: privateKey,
+//     cert: certificate,
+//     ca: ca
+// };
 
 //Mysql 
 const mysql = require('mysql2');
@@ -52,9 +52,9 @@ function fechaActual() {
 async function panicbutton(datos) {
     try {
         /**pruebas */
-        // const url = "https://lodashy.com:9000/api/venta"
+        // const url = "http://localhost:9000/api/venta"
         /**produccion */
-        const url = "http://localhost:9000/api/venta"
+        const url = "https://lodashy.com:9000/api/venta"
         const response = await fetch(url, {
             method: 'POST',
             mode: 'cors',
@@ -75,12 +75,12 @@ async function panicbutton(datos) {
 
 async function sendNotificationWhatsApp(message, phone) {
     try {
+        /**Habilitar para produccion */
         const data = {
             "message": `${message}`,
             "phone": `${phone}`
         }
         const url = "http://137.184.181.103:3001/lead"
-        // const url = "http://localhost:3001/lead"
         const response = await fetch(url, {
             method: 'POST',
             mode: 'cors',
@@ -94,6 +94,8 @@ async function sendNotificationWhatsApp(message, phone) {
             body: JSON.stringify(data)
         });
         await response.json()
+        /**Habilitar para pruebas */
+        // console.log("Pruebas no se envia whatsapp")
     } catch (error) {
         console.log(error)
     }
@@ -114,6 +116,36 @@ function updatStatusDelivery(idrepartidor, status) {
         if (error) throw error;
         console.log("update status rider sucess!")
     });
+}
+
+function ventasrider(idventa, idrepartidor) {
+    connection.query(`
+    INSERT INTO ventasrider 
+    values(null,?,?,
+        (select preciorider from preciosdelivery where status=1),
+        (select now()),1)
+        `,
+        [
+            idrepartidor,
+            idventa
+        ], function (error, results, fields) {
+            if (error) throw error;
+        });
+}
+
+function ventasnegocio(idventa, idtienda) {
+    connection.query(`
+    INSERT INTO ventasnegocio 
+    values(null,?,?,
+        (select p.precio from venta as v INNER JOIN producto as p ON v.idproducto=p.idproducto where v.idventa=${idventa} and v.status=1),
+        (select now()),1)
+        `,
+        [
+            idtienda,
+            idventa
+        ], function (error, results, fields) {
+            if (error) throw error;
+        });
 }
 
 var async = require('async');
@@ -360,9 +392,8 @@ app.get('/api/ventas', function (req, res) {
 });
 
 
-app.get('/api/productos/:limite/:zona', function (req, res) {
-    const { limite, zona } = req.params
-    // const diasemana = getDiaActual()
+app.get('/api/productos/:limite/:zona/:tipo', function (req, res) {
+    const { limite, zona, tipo } = req.params
     connection.query(`SELECT 
         precioenvio.precioenvio,
         statustienda.autoservicio,
@@ -387,6 +418,7 @@ app.get('/api/productos/:limite/:zona', function (req, res) {
         WHERE producto.status=1 
         and usuario.cp like '${zona}%'
         and horario.status_dia=1 
+        and producto.tipo=${tipo}
         and horario.dia=(select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' 
                                                                  WHEN 2 THEN 'MARTES' 
                                                                  WHEN 3 THEN 'MIERCOLES' 
@@ -666,6 +698,8 @@ app.post('/api/completarpedidocustomer', function (req, res) {
                                 [idventa], function (error, resultidrepartidor, fields) {
                                     if (error) throw error;
                                     if (resultidrepartidor.length > 0) {
+                                        ventasrider(idventa, resultidrepartidor[0].idrepartidor)
+                                        ventasnegocio(idventa, idtienda)
                                         updatStatusDelivery(resultidrepartidor[0].idrepartidor, 1)
                                         res.json({ result: "OK" });
                                         res.end();
@@ -723,8 +757,10 @@ app.post('/api/pedidoupdate', function (req, res) {
                         [idventa], function (error, resultsupdate, fields) {
                             if (error) throw error;
                             if (resultsupdate.affectedRows > 0) {
-                                res.json({ result: "OK" });
                                 updatStatusDelivery(idrepartidor, 1)
+                                ventasrider(idventa, idrepartidor)
+                                ventasnegocio(idventa, idtienda)
+                                res.json({ result: "OK" });
                             } else {
                                 res.json({ result: "OK" });
                             }
@@ -1016,6 +1052,7 @@ var namephotos = [];
 var logotienda = [];
 var photosrepartidor = [];
 var photosnegocio = [];
+
 const storage = multer.diskStorage({
     destination: path.join(__dirname, 'public/uploads'),
     filename: (req, file, cb) => {
@@ -1302,12 +1339,15 @@ app.get('/api/registronegocios/:limite/:cp', function (req, res) {
 });
 
 app.get('/api/visitantes', function (req, res) {
-    // const { idtienda } = req.params
     connection.query(`UPDATE visitantes set cantidad=cantidad+1`,
         [], function (error, resultspedido, fields) {
             if (error) throw error;
-            // res.json(resultspedido);
-            res.end();
+            connection.query(`SELECT cantidad from visitantes`,
+                [], function (error, visitantes, fields) {
+                    if (error) throw error;
+                    res.json(visitantes[0].cantidad);
+                    res.end();
+                });
         });
 });
 
@@ -1332,9 +1372,11 @@ app.post('/api/producto', upload.array('myFile', 3), async (req, res) => {
             cantidad,
             idtienda,
             t_entrega,
-            categoria
+            categoria,
+            tipo,
+            envio
         } = form;
-        connection.query(`INSERT INTO producto VALUES(null,?,?,?,?,?,?,?,?,'${fechaActual()}',0,1)`,
+        connection.query(`INSERT INTO producto VALUES(null,?,?,?,?,?,?,?,?,'${fechaActual()}',?,?,1)`,
             [
                 nombre,
                 fotos,
@@ -1343,7 +1385,9 @@ app.post('/api/producto', upload.array('myFile', 3), async (req, res) => {
                 cantidad,
                 idtienda,
                 t_entrega,
-                categoria
+                categoria,
+                envio,
+                tipo
             ],
             function (error, results, fields) {
                 if (error) throw error;
@@ -1547,13 +1591,6 @@ app.use("/api/static", express.static(__dirname + '/public/uploads'));
 //     console.log("Working on port 9000");
 // });
 
-// Starting both http & https servers
-// const httpServer = http.createServer(app);
-
-// httpServer.listen(9001, () => {
-//     console.log('HTTP Server running on port 9001');
-// });
-
 /**Habilitar para produccion */
 const httpsServer = https.createServer(credentials, app);
 httpsServer.listen(9000, () => {
@@ -1682,10 +1719,10 @@ app.get('/api/panicbutton/:idtienda/:tipoenvio', async function (req, res) {
                     }
                     res.end();
                 })
-                // .catch(() => {
-                //     res.json({ color: "danger", respuesta: "Ocurrio un error intente mas tarde." });
-                //     res.end();
-                // })
+            // .catch(() => {
+            //     res.json({ color: "danger", respuesta: "Ocurrio un error intente mas tarde." });
+            //     res.end();
+            // })
         })
 
 

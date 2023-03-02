@@ -144,13 +144,14 @@ CREATE TABLE producto (
     categoria varchar(255),
     fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     envio char(1) DEFAULT 0,
+    tipo char(1) DEFAULT 0,
     status char(1),
     PRIMARY KEY (idproducto),
     INDEX (idproducto),
     FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
 );
 
-ALTER TABLE producto ADD COLUMN envio char(1) DEFAULT 0 AFTER fechahora;
+ALTER TABLE producto ADD COLUMN tipo char(1) DEFAULT 0 AFTER envio;
 ALTER TABLE producto MODIFY categoria VARCHAR(255);
 
 
@@ -336,6 +337,55 @@ create table pedidosxrider (
     FOREIGN KEY (idrepartidor) REFERENCES repartidor(idrepartidor)
 );
 
+CREATE TABLE likesoferta (
+    idlikeoferta int NOT NULL AUTO_INCREMENT,
+    idoferta int,
+    idtienda int,
+    fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status char(1),
+    PRIMARY KEY (idlikeoferta),
+    INDEX (idlikeoferta),
+    FOREIGN KEY (idoferta) REFERENCES oferta(idoferta),
+    FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
+);
+
+CREATE TABLE likesproducto (
+    idlikesproducto int NOT NULL AUTO_INCREMENT,
+    idproducto int,
+    idtienda int,
+    fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status char(1),
+    PRIMARY KEY (idlikesproducto),
+    INDEX (idlikesproducto),
+    FOREIGN KEY (idproducto) REFERENCES producto(idproducto),
+    FOREIGN KEY (idtienda) REFERENCES tienda(idtienda)
+);
+
+CREATE TABLE ventasrider (
+    idventasrider int NOT NULL AUTO_INCREMENT,
+    idrepartidor int,
+    idventa int,
+    valor double(16,2),
+    fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status char(1),
+    PRIMARY KEY (idventasrider),
+    INDEX (idventasrider),
+    FOREIGN KEY (idrepartidor) REFERENCES repartidor(idrepartidor),
+    FOREIGN KEY (idventa) REFERENCES venta(idventa)
+);
+
+CREATE TABLE ventasnegocio (
+    idventasnegocio int NOT NULL AUTO_INCREMENT,
+    idtienda int,
+    idventa int,
+    valor double(16,2),
+    fechahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status char(1),
+    PRIMARY KEY (idventasnegocio),
+    INDEX (idventasnegocio),
+    FOREIGN KEY (idtienda) REFERENCES tienda(idtienda),
+    FOREIGN KEY (idventa) REFERENCES venta(idventa)
+);
 
 INSERT INTO visitantes VALUES(null,0,1);
 
@@ -374,118 +424,8 @@ END
 |
 DELIMITER ;
 
-
-
-
-SELECT producto.nombre, producto.fotos, producto.descripcion, venta.cantidad, venta.direccion, venta.colonia, venta.estado, venta.ciudad, venta.pais, venta.cp, venta.nombre 
-FROM venta
-INNER JOIN producto
-ON venta.idproducto=producto.idproducto
-WHERE idventa=80;
-
-
-
-
-    
-
-
-SELECT statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.hora_cierre, tienda.nombre_tienda
-FROM tienda
-INNER JOIN producto
-ON tienda.idtienda=producto.idtienda
-INNER JOIN statustienda
-ON statustienda.idtienda=producto.idtienda
-WHERE producto.status=1;
-
-
-
-SELECT horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
-        FROM tienda
-        INNER JOIN producto
-        ON tienda.idtienda=producto.idtienda
-        INNER JOIN statustienda
-        ON statustienda.idtienda=producto.idtienda
-        INNER JOIN horario
-        ON horario.idtienda=producto.idtienda
-        WHERE producto.status=1 and horario.status_dia=1 and horario.dia='sabado' and horario.status_dia=1;
-
-
-        SELECT producto.status, horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
-        FROM tienda
-        INNER JOIN producto
-        ON tienda.idtienda=producto.idtienda
-        INNER JOIN statustienda
-        ON statustienda.idtienda=producto.idtienda
-        INNER JOIN horario
-        ON horario.idtienda=producto.idtienda
-        WHERE producto.status=1 and horario.status_dia=1 and horario.dia="viernes" and horario.status_dia=1 limit 50;
-
-        select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' 
-                                                                 WHEN 2 THEN 'MARTES' 
-                                                                 WHEN 3 THEN 'MIERCOLES' 
-                                                                 WHEN 4 THEN 'JUEVES' 
-                                                                 WHEN 5 THEN 'VIERNES' 
-                                                                 WHEN 6 THEN 'SABADO' 
-                                                                 WHEN 7 THEN 'DOMINGO' 
-                                                                 END) 
-
-SELECT 
-        precioenvio.precioenvio,
-        statustienda.autoservicio,
-
-        producto.status, 
-        horario.hora_apertura as hora_apertura_horario,horario.hora_cierre as hora_cierre_horario,
-        horario.status_dia as status_dia_horario,statustienda.status as statustienda, producto.nombre, 
-        producto.descripcion, producto.fotos, producto.precio, producto.idproducto, producto.idtienda, 
-        producto.envio, tienda.hora_apertura, tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
-        FROM tienda
-        INNER JOIN producto
-        ON tienda.idtienda=producto.idtienda
-        INNER JOIN statustienda
-        ON statustienda.idtienda=producto.idtienda
-        INNER JOIN horario
-        ON horario.idtienda=producto.idtienda
-        INNER JOIN usuario
-        ON usuario.idusuario=tienda.idusuario
-        LEFT JOIN precioenvio
-        ON tienda.idtienda=precioenvio.idtienda
-
-        WHERE producto.status=1 
-        and usuario.cp like '615%'
-        and horario.status_dia=1 
-        and horario.dia=(select case DATE_FORMAT(curdate(),'%w') when 1 then 'LUNES' 
-                                                                 WHEN 2 THEN 'MARTES' 
-                                                                 WHEN 3 THEN 'MIERCOLES' 
-                                                                 WHEN 4 THEN 'JUEVES' 
-                                                                 WHEN 5 THEN 'VIERNES' 
-                                                                 WHEN 6 THEN 'SABADO' 
-                                                                 WHEN 0 THEN 'DOMINGO' 
-                                                                 END) 
-        and horario.status_dia=1 limit 50;
-
-
-        select DATE_FORMAT(curdate(),'%w')
-
 /**Borrar un campo de una tabla mysql*/
         alter table statusdelivery drop statusaprovacion;
-
-
-
-        SELECT horario.hora_apertura as hora_apertura_horario, 
-        horario.hora_cierre as hora_cierre_horario,horario.status_dia as status_dia_horario,
-        statustienda.status as statustienda, producto.nombre, producto.descripcion, producto.fotos, 
-        producto.precio, producto.idproducto, producto.idtienda, producto.envio, tienda.hora_apertura, 
-        tienda.logotipo, tienda.hora_cierre, tienda.nombre_tienda
-        FROM tienda
-        INNER JOIN producto
-        ON tienda.idtienda=producto.idtienda
-        INNER JOIN statustienda
-        ON statustienda.idtienda=producto.idtienda
-        INNER JOIN horario
-        ON horario.idtienda=producto.idtienda
-        WHERE producto.idtienda=62 and producto.status=1 
-        and horario.status_dia=1 and horario.dia='DOMINGO' and horario.status_dia=1 
-        limit 50;
 
 --Validar suscriptor
         -- INSERT INTO suscriptor VALUES(null,10,'https://fcm.googleapis.com/fcm/send/cHmCp4FYrAY:APA91bGaiQveISAHQGu-wul-cl3qvux7KFq4oiIkWtLn3O2gfpn2-kVaTslNXs1ae0Dcj5fg-CzqIvAiY-Nly1wEBiDUvLRfPXgwm7Bx8v26WG4ak8zwpNW54i9SX3WF8QWLSJ_utMJx',NULL,'BFnNF24EFOGoCVldFVyohCPROuj9FaqkIGeVqn0nV__NF8Se1f8bMFhmg53JImYALud-XPu0wUPumuDiIl3vZkQ','EmH_wF_lvlLwRvwHzJ3ZKA','2023-2-13 22:40:21',1);
